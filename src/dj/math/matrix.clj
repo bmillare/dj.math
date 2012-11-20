@@ -5,6 +5,12 @@
 (defprotocol Itranspose
   (t [m]))
 
+(defprotocol Irowseq
+  (row-seq [m]))
+
+(defprotocol Icolseq
+  (col-seq [m]))
+
 ;; The current default concretion
 (deftype VectorVectorMatrix
     [vvm]
@@ -21,14 +27,8 @@
       (get (get vvm x notfound) y notfound)))
   clojure.lang.IFn
   (invoke [this arg]
-    (cond
-     (and (sequential? arg)
-          (= (count arg) 2))
-     (let [[x y] arg]
-       ((vvm x) y))
-
-     (map? arg)
-     vvm))
+    (let [[x y] arg]
+      ((vvm x) y)))
   clojure.lang.IPersistentCollection 
   (count [this] (apply + (map count vvm))) 
   (empty [this] []) 
@@ -65,7 +65,22 @@
       (VectorVectorMatrix. (assoc-in vvm [x y] v))))
   Itranspose
   (t [this]
-    (VectorVectorMatrix. (apply mapv vector vvm))))
+    (VectorVectorMatrix. (apply mapv vector vvm)))
+  Irowseq
+  (row-seq [this]
+    (map (fn [r]
+           (VectorVectorMatrix. [r]))
+         vvm))
+  Icolseq
+  (col-seq [this]
+    (let [width (count (first vvm))
+          height (count vvm)]
+      (map (fn [c]
+             (VectorVectorMatrix.
+              (mapv (fn [r]
+                      [((vvm r) c)])
+                    (range height))))
+           (range width)))))
 
 (defn v [vvm]
   (VectorVectorMatrix. vvm))
@@ -134,7 +149,8 @@
              (dm/d x y))
            xm))
 
-(defmethod dm/d [:symbolic-expression VectorVectorMatrix] [y xm]
+;; not sure if this is really needed
+#_ (defmethod dm/d [:symbolic-expression VectorVectorMatrix] [y xm]
   (map-vvm (fn [x]
              (dm/d x y))
            xm))
@@ -177,7 +193,9 @@
                  (into [1] (vec (repeat (- size i 1) 0)))))
          (range size))))
 
-(defn vnorm [m]
+(defn vnorm
+  "operates on anything that can be represented as a seq"
+  [m]
   (dm/sqrt (reduce dm/+
                    (map (fn [n]
                           (dm/pow n
@@ -220,6 +238,21 @@
 (defmethod dm/pow [java.lang.Double java.lang.Double] [x e]
   (Math/pow x e))
 
+(dm/def-type-commutative-method dm/+ [java.lang.Long java.lang.Double] [x y]
+  (+ x y))
+
+(dm/def-type-commutative-method dm/- [java.lang.Long java.lang.Double] [x y]
+  (- x y))
+
+(dm/def-type-commutative-method dm/* [java.lang.Long java.lang.Double] [x y]
+  (* x y))
+
+(dm/def-type-commutative-method dm/d [java.lang.Long java.lang.Double] [x y]
+  (/ x y))
+
+(dm/def-type-commutative-method dm/pow [java.lang.Long java.lang.Double] [x e]
+  (Math/pow x e))
+
 (dm/def-commutative-method dm/+ [:symbolic-expression java.lang.Long] [x y]
   (if (zero? y)
     x
@@ -232,9 +265,10 @@
     (dmp/s {:op "-"
             :children [x y]})))
 
-(defmethod dm/- [java.lang.Long :symbolic-expression] [y x]
-  (if (zero? y)
-    x
+(defmethod dm/- [java.lang.Long :symbolic-expression] [x y]
+  (if (zero? x)
+    (dmp/s {:op "-"
+            :children [y]})
     (dmp/s {:op "-"
             :children [x y]})))
 
@@ -250,11 +284,11 @@
   (dmp/s {:op "/"
           :children [x y]}))
 
-(defmethod dm/d [java.lang.Long :symbolic-expression] [y x]
-  (if (zero? y)
+(defmethod dm/d [java.lang.Long :symbolic-expression] [x y]
+  (if (zero? x)
     0
     (dmp/s {:op "/"
-            :children [y x]})))
+            :children [x y]})))
 
 (defmethod dm/sqrt [:symbolic-expression] [x]
   (dmp/s {:op "sqrt"
@@ -284,9 +318,10 @@
     (dmp/s {:op "-"
             :children [x y]})))
 
-(defmethod dm/- [java.lang.Double :symbolic-expression] [y x]
-  (if (zero? y)
-    x
+(defmethod dm/- [java.lang.Double :symbolic-expression] [x y]
+  (if (zero? x)
+    (dmp/s {:op "-"
+            :children [y]})
     (dmp/s {:op "-"
             :children [x y]})))
 
@@ -302,20 +337,16 @@
   (dmp/s {:op "/"
           :children [x y]}))
 
-(defmethod dm/d [java.lang.Double :symbolic-expression] [y x]
-  (if (zero? y)
+(defmethod dm/d [java.lang.Double :symbolic-expression] [x y]
+  (if (zero? x)
     0
     (dmp/s {:op "/"
-            :children [y x]})))
-
-(defmethod dm/sqrt [:symbolic-expression] [x]
-  (dmp/s {:op "sqrt"
-          :children [x]}))
+            :children [x y]})))
 
 (defmethod dm/pow [:symbolic-expression java.lang.Double] [x e]
   (if (zero? e)
     1
-    (if (= 1 e)
+    (if (= 1.0 e)
       x
       (dmp/s {:op "pow"
               :children [x e]}))))

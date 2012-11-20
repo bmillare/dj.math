@@ -17,12 +17,26 @@
 (defmulti sqrt dispatch)
 (defmulti pow dispatch)
 
-(defmacro def-commutative-method [name
-                                  dispatch-value
-                                  args
-                                  & body]
+(defmacro def-commutative-method
+  "sugar for defining a commutative method"
+  [name
+   dispatch-value
+   args
+   & body]
   `(do
      (defmethod ~name ~dispatch-value ~args
        ~@body)
      (defmethod ~name ~(vec (reverse dispatch-value)) ~(vec (reverse args))
+       ~@body)))
+
+(defmacro def-type-commutative-method
+  "sugar for defining a type (only) commutative method"
+  [name
+   dispatch-value
+   args
+   & body]
+  `(do
+     (defmethod ~name ~dispatch-value ~args
+       ~@body)
+     (defmethod ~name ~(vec (reverse dispatch-value)) ~args
        ~@body)))
