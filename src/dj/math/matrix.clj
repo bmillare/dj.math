@@ -11,6 +11,16 @@
 (defprotocol Icolseq
   (col-seq [m]))
 
+(defprotocol Iassocminor
+  (assoc-minor [m start-idx minor-matrix]))
+
+(defprotocol Idimensions
+  (width [m])
+  (height [m]))
+
+(defprotocol Igetminor
+  (get-minor [m top-left-idx bottom-right-limit]))
+
 ;; The current default concretion
 (deftype VectorVectorMatrix
     [vvm]
@@ -21,14 +31,14 @@
   clojure.lang.ILookup 
   (valAt [this key]
     (let [[x y] key]
-      ((vvm x) y))) 
+      ((vvm y) x))) 
   (valAt [this key notfound]
     (let [[x y] key]
-      (get (get vvm x notfound) y notfound)))
+      (get (get vvm y notfound) x notfound)))
   clojure.lang.IFn
   (invoke [this arg]
     (let [[x y] arg]
-      ((vvm x) y)))
+      ((vvm y) x)))
   clojure.lang.IPersistentCollection 
   (count [this] (apply + (map count vvm))) 
   (empty [this] []) 
@@ -53,7 +63,7 @@
                 (> x-dim xi)))))))) 
   (entryAt [this k]
     (let [[x y] key]
-      ((vvm x) y)))
+      ((vvm y) x)))
   clojure.lang.Seqable
   (seq [this] (seq (apply concat vvm)))
   clojure.lang.IPersistentMap
@@ -80,7 +90,53 @@
               (mapv (fn [r]
                       [((vvm r) c)])
                     (range height))))
-           (range width)))))
+           (range width))))
+  Iassocminor
+  (assoc-minor [m start-idx minor-matrix]
+    (let [[sx sy] start-idx
+          m-width (count (first vvm))
+          m-height (count vvm)
+          minor-width (width minor-matrix)
+          minor-height (height minor-matrix)]
+      (if (and (< (+ sx (dec minor-width))
+                  m-width)
+               (< (+ sy (dec minor-height))
+                  m-height))
+        (VectorVectorMatrix. (reduce (fn [ret-m [xi yi]]
+                                       (assoc-in ret-m
+                                                 [(+ yi sy)
+                                                  (+ xi sx)]
+                                                 (minor-matrix [xi yi])))
+                                     vvm
+                                     (for [x (range minor-width)
+                                           y (range minor-height)]
+                                       [x y])))
+        (throw (Exception. "minor does not fit within matrix starting at index")))))
+  Idimensions
+  (width [this]
+    (count (first vvm)))
+  (height [this]
+    (count vvm))
+  Igetminor
+  (get-minor [m top-left-idx bottom-right-limit]
+    (let [[tlx tly] top-left-idx
+          [brx bry] bottom-right-limit]
+      (VectorVectorMatrix. (reduce (fn [vv y]
+                                     (conj vv
+                                           (subvec (vvm y)
+                                                   tlx 
+                                                   brx)))
+                                   []
+                                   (range tly bry))))))
+
+(defn minor
+  ([m top-left-idx bottom-right-limit]
+     (get-minor m top-left-idx bottom-right-limit))
+  ([m top-left-idx]
+     (get-minor m top-left-idx [(width m)
+                                (height m)])))
+
+
 
 (defn v [vvm]
   (VectorVectorMatrix. vvm))
