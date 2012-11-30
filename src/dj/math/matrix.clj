@@ -211,6 +211,16 @@
              (dm/d x y))
            xm))
 
+(defmethod dm/- [java.lang.Long] [x]
+  (- x))
+
+(defmethod dm/- [java.lang.Double] [x]
+  (- x))
+
+(defmethod dm/- [:symbolic-expression] [x]
+  (dmp/s {:op "-"
+          :children [x]}))
+
 (defmethod dm/- [VectorVectorMatrix java.lang.Long] [xm y]
   (map-vvm (fn [x]
              (dm/- x y))
@@ -275,6 +285,15 @@
 
 (defmethod dm/pow [java.lang.Long java.lang.Long] [x e]
   (Math/pow x e))
+
+(defmethod dm/copy-sign [java.lang.Double java.lang.Double] [m s]
+  (Math/copySign m s))
+
+(defmethod dm/copy-sign [java.lang.Double java.lang.Long] [m s]
+  (Math/copySign m (double s)))
+
+(defmethod dm/copy-sign [java.lang.Long java.lang.Double] [m s]
+  (Math/copySign (double m) s))
 
 (defmethod dm/+ [java.lang.Double java.lang.Double] [x y]
   (+ x y))

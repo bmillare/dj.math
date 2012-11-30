@@ -16,6 +16,7 @@
 (defmulti d dispatch)
 (defmulti sqrt dispatch)
 (defmulti pow dispatch)
+(defmulti copy-sign dispatch)
 
 (defmacro def-commutative-method
   "sugar for defining a commutative method"
