@@ -84,12 +84,15 @@
                               second)]
                 (dp/parse expr txt))))
 
-(defmulti emit (fn [x]
-                 (let [tx (type x)]
-                   (if (= tx
-                          :symbolic-expression)
-                     (set (keys x))
-                     tx))))
+(defn symbolic-expression-dispatcher
+  [x]
+  (let [tx (type x)]
+    (if (= tx
+           :symbolic-expression)
+      (set (keys x))
+      tx)))
+
+(defmulti emit symbolic-expression-dispatcher)
 
 (defmethod emit
   #{:op :children}
