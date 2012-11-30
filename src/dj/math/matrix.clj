@@ -190,6 +190,22 @@
              (dm/* x y))
            ym))
 
+(defmethod dm/* [:symbolic-expression :symbolic-expression] [x y]
+  (dmp/s {:op "*"
+          :children [x y]}))
+
+(defmethod dm/+ [:symbolic-expression :symbolic-expression] [x y]
+  (dmp/s {:op "+"
+          :children [x y]}))
+
+(defmethod dm/- [:symbolic-expression :symbolic-expression] [x y]
+  (dmp/s {:op "-"
+          :children [x y]}))
+
+(defmethod dm/d [:symbolic-expression :symbolic-expression] [x y]
+  (dmp/s {:op "/"
+          :children [x y]}))
+
 (defmethod dm/d [VectorVectorMatrix java.lang.Long] [xm y]
   (map-vvm (fn [x]
              (dm/d x y))
@@ -294,6 +310,20 @@
 
 (defmethod dm/copy-sign [java.lang.Long java.lang.Double] [m s]
   (Math/copySign (double m) s))
+
+(defmethod dm/copy-sign [:symbolic-expression java.lang.Double] [m s]
+  (if (pos? s)
+    m
+    (dm/- m)))
+
+(defmethod dm/copy-sign [:symbolic-expression java.lang.Long] [m s]
+  (if (pos? s)
+    m
+    (dm/- m)))
+
+(defmethod dm/copy-sign [:symbolic-expression :symbolic-expression] [m s]
+  (dmp/s {:op "copy-sign"
+          :children [m s]}))
 
 (defmethod dm/+ [java.lang.Double java.lang.Double] [x y]
   (+ x y))
@@ -429,3 +459,23 @@
 (defmethod dm/pow [java.lang.Double :symbolic-expression] [x e]
   (dmp/s {:op "pow"
           :children [x e]}))
+
+(defmethod dm/ln [java.lang.Long] [x]
+  (Math/log (double x)))
+
+(defmethod dm/ln [java.lang.Double] [x]
+  (Math/log x))
+
+(defmethod dm/ln [:symbolic-expression] [x]
+  (dmp/s {:op "ln"
+          :children [x]}))
+
+(defmethod dm/exp [java.lang.Long] [x]
+  (Math/exp (double x)))
+
+(defmethod dm/exp [java.lang.Double] [x]
+  (Math/exp x))
+
+(defmethod dm/exp [:symbolic-expression] [x]
+  (dmp/s {:op "exp"
+          :children [x]}))

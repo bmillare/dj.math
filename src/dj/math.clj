@@ -1,14 +1,23 @@
 (ns dj.math
   (:refer-clojure :exclude [* + -])
-  (:require [dj.peg :as dp]))
+  (:require [dj.peg :as dp]
+            [dj.math.parser :as dmp]))
 
 (defn dispatch
   "assumes arity greater than 2 is the same type"
   ([x]
      [(type x)])
-  ([x y & args]
+  ([x y]
      [(type x)
-      (type y)]))
+      (type y)])
+  ([x y z]
+     [(type x)
+      (type y)
+      (type z)])
+  ([x y z & args]
+     [(type x)
+      (type y)
+      (type z)]))
 
 (defmulti * dispatch)
 (defmulti + dispatch)
@@ -17,6 +26,12 @@
 (defmulti sqrt dispatch)
 (defmulti pow dispatch)
 (defmulti copy-sign dispatch)
+(defmulti ln dispatch)
+(defmulti exp dispatch)
+
+(defn ? [c t f]
+  (dmp/s {:op "if"
+          :children [c t f]}))
 
 (defmacro def-commutative-method
   "sugar for defining a commutative method"

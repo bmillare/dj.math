@@ -53,6 +53,32 @@
         I (dmm/identity-m height)]
     (qr-decomp-step A I height I I)))
 
-(qr-decomp (dmm/v [[12 -51 4]
+#_ (qr-decomp (dmm/v [[12 -51 4]
                    [6 167 -68]
                    [-4 24 -41]]))
+
+#_ (let [x (dmp/s {:variable "x"})
+         y (dmp/s {:variable "y"})
+         z (dmp/s {:variable "z"})
+         a (dmp/s {:variable "a"})]
+     (dmp/emit (first (:Q (qr-decomp (dmm/v [[x 0]
+                                             [0 a]]))))))
+#_ (- 1
+      (* (* (/ (- x
+                  (copy-sign (sqrt (pow x
+                                        2))
+                             x))
+               (sqrt (pow (- x
+                             (copy-sign (sqrt (pow x
+                                                   2))
+                                        x))
+                          2)))
+            (/ (- x
+                  (copy-sign (sqrt (pow x 2)) x))
+               (sqrt (pow (- x (copy-sign (sqrt (pow x
+                                                     2))
+                                          x))
+                          2))))
+         2))
+
+
