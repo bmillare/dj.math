@@ -7,14 +7,16 @@
 (defn parse [txt]
   (let [id (dp/t #"\p{Alpha}\w*")
 	ws (dp/t #"\s*")
-        int-num (dp/alt (dp/t #"\d+")
+        wrap-ws (fn [t]
+                  (dp/s ws t ws))
+        int-num (dp/alt (dp/t #"\d+(?![eE])")
                         (fn [x]
                           (Integer/parseInt x)))
 	double-num (dp/alt (dp/t #"[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?")
                            (fn [x]
                              (Double/parseDouble x)))
 	plus-minus (dp/t #"[+\-]")
-	mult-div (dp/t #"[*/]")
+        mult-div (dp/t #"[*/]")
         equalities (dp/t #"==|[><]|\!=")
         comma (dp/t #",")
 	lparen (dp/t #"\(")
@@ -23,25 +25,54 @@
                      (if r
                        (s {:op (first (first r))
                            :children (vec (list* f (map second r)))})
-                       f))]
+                       f))
+        infix-couple (fn [c nc]
+                       (fn [[f r]]
+                         (if r
+                           (let [ret (reduce (fn [ret [op e]]
+                                               (if (= op c)
+                                                 (update-in ret
+                                                            [c]
+                                                            conj
+                                                            e)
+                                                 (update-in ret
+                                                            [nc]
+                                                            conj
+                                                            e)))
+                                             {c [f]
+                                              nc []}
+                                             r)]
+                             (let [rnc (ret nc)]
+                               (if (empty? rnc)
+                                 (s {:op c
+                                     :children (ret c)})
+                                 (s {:op nc
+                                     :children (into [(let [rc (ret c)]
+                                                        (if (= 1
+                                                               (count rc))
+                                                          (first rc)
+                                                          (s {:op c
+                                                              :children rc})))]
+                                                     rnc)}))))
+                           f)))]
     (dj/var-let [mult-expr (dp/alt (dp/s atom
                                          (dp/*
                                           (dp/s mult-div
                                                 atom)))
-                                   infix-node)
+                                   (infix-couple "*" "/"))
                  plus-expr (dp/alt (dp/s mult-expr
                                          (dp/*
                                           (dp/s plus-minus
                                                 mult-expr)))
-                                   infix-node)
+                                   (infix-couple "+" "-"))
                  equality-expr (dp/alt (dp/s plus-expr
                                              (dp/* (dp/s equalities
                                                          plus-expr)))
                                        infix-node)
                  cond-expr (dp/alt (dp/s equality-expr
-                                         (dp/? (dp/s (dp/t #"\?")
+                                         (dp/? (dp/s (wrap-ws (dp/t #"\?"))
                                                      equality-expr
-                                                     (dp/t #":")
+                                                     (wrap-ws (dp/t #":"))
                                                      equality-expr)))
                                    (fn [[c r]]
                                      (if r
