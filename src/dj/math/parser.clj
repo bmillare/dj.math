@@ -6,13 +6,13 @@
 
 (defn parse [txt]
   (let [id (dp/t #"\p{Alpha}\w*")
-	ws (dp/t #"\s*")
+	ws (dp/t #"(?:\s|;)*")
         wrap-ws (fn [t]
                   (dp/s ws t ws))
-        int-num (dp/alt (dp/t #"\d+(?![eE])")
+        int-num (dp/alt (dp/t #"\d+")
                         (fn [x]
                           (Integer/parseInt x)))
-	double-num (dp/alt (dp/t #"[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?")
+	double-num (dp/alt (dp/t #"[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?")
                            (fn [x]
                              (Double/parseDouble x)))
 	plus-minus (dp/t #"[+\-]")
@@ -21,6 +21,7 @@
         comma (dp/t #",")
 	lparen (dp/t #"\(")
 	rparen (dp/t #"\)")
+        cast (dp/t #"double|float")
 	infix-node (fn pm [[f r]]
                      (if r
                        (s {:op (first (first r))
@@ -82,21 +83,34 @@
                                        c)))
                  expr @cond-expr
                  atom-no-ws (dp/alt (dp/s (dp/? (dp/t #"-"))
-                                          (dp/| (dp/alt (dp/s int-num (dp/!? (dp/t #"\.")))
+                                          (dp/| (dp/alt (dp/s int-num (dp/!? (dp/| (dp/t #"\.")
+                                                                                   (dp/t #"[eE]"))))
                                                         first)
                                                 double-num
+                                                (dp/alt (dp/s lparen
+                                                              ws
+                                                              cast
+                                                              ws
+                                                              rparen
+                                                              ws
+                                                              expr)
+                                                        (fn [[_ _ id _ _ _ e]]
+                                                          (s {:op id
+                                                              :children [e]})))
                                                 (dp/alt (dp/s id
+                                                              ws
                                                               lparen
                                                               rparen)
-                                                        (fn [[id _ _]]
+                                                        (fn [[id _ _ _]]
                                                           (s {:op id
                                                               :children []})))
                                                 (dp/alt (dp/s id
+                                                              ws
                                                               lparen
                                                               expr
                                                               (dp/* (dp/s comma expr))
                                                               rparen)
-                                                        (fn [[id _ f r _]]
+                                                        (fn [[id _ _ f r _]]
                                                           (s {:op id
                                                               :children (vec (list* f (map second r)))})))
                                                 (dp/alt id
