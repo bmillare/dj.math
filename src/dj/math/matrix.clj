@@ -492,8 +492,7 @@
                         (range (count m)))
         ms (seq m)
         bindings (reduce (fn [ret [k v]]
-                           (if (or (number? v)
-                                   (:variable v))
+                           (if (number? v)
                              ret
                              (if (:bindings v)
                                (into ret (into (:bindings v)

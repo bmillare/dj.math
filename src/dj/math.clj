@@ -67,8 +67,7 @@
                        [(:bindings aly) (first (:children aly))]
                        [[] y])
              ;; not sure if this is fast enough BUG?
-             bindings #_ (vec (apply concat (distinct (partition 2 (into xb yb)))))
-             (into xb yb)]
+             bindings (into xb yb)]
          (if (empty? bindings)
            (f x y)
            (let [ret (f xc
@@ -95,8 +94,7 @@
                        [(:bindings alz) (first (:children alz))]
                        [[] z])
              ;; not sure if this is fast enough BUG?
-             bindings #_ (vec (apply concat (distinct (partition 2 (into xb (into yb zb))))))
-             (into xb (into yb zb))]
+             bindings (into xb (into yb zb))]
          (if (empty? bindings)
            (f x y z)
            (let [ret (f xc
