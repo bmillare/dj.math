@@ -1,6 +1,7 @@
 (ns dj.math.differentiation
   (:require [dj.math :as dm]
-            [dj.math.parser :as dmp]))
+            [dj.math.parser :as dmp]
+            [dj.math.expression :as dme]))
 
 ;; Note that the chain rule must be implemented for each type
 
@@ -18,14 +19,53 @@
   [x variable]
   0.0)
 
+;; Note if we want to have recursive looking up of symbol definitions,
+;; then we need dependency information. The only way we can do this
+;; elegantly without passing in this data everywhere else (even though
+;; its only used in this function), we need to use bindings. Until
+;; multimethods are anonymous and can be treated like data, we won't
+;; be able to create closures programatically and thus we will have to
+;; use bindings. In the future, we can fix this.
+
+(def ^:dynamic symbolic-d (fn [x variable]
+                            (let [exp-var-name (:variable x)
+                                  var-name (:variable variable)]
+                              (if (= var-name exp-var-name)
+                                1
+                                0))))
+
+(defn recursive-symbolic-d
+  [exp-map dep-map]
+  (fn [x variable]
+    (let [exp-var-name (:variable x)
+          var-name (:variable variable)]
+      (if (= var-name exp-var-name)
+        1
+        ;; if x depends on variable, return derivative of x
+        (if ((dep-map exp-var-name) var-name)
+          (d (exp-map exp-var-name)
+             variable)
+          0)))))
+
+(defn symbolic-lookup-differentiation
+  "
+
+returns a function that differentiates expressions but can also lookup
+definitions
+
+The returned fn already binds symbolic-d
+
+"
+  [exp-map dep-map]
+  (fn [x variable]
+    (binding [symbolic-d (recursive-symbolic-d exp-map
+                                               dep-map)]
+      (d x variable))))
+
 (defmethod d
   #{:variable}
   [x variable]
-  (let [exp-var-name (:variable x)
-        var-name (:variable variable)]
-    (if (= var-name exp-var-name)
-      1
-      0)))
+  (symbolic-d x variable))
 
 (defmulti d-op :op)
 
@@ -72,6 +112,11 @@
     (dm/d (d x variable)
           x)))
 
+(defmethod d-op "log" [{:keys [op children]} variable]
+  (let [x (first children)]
+    (dm/d (d x variable)
+          x)))
+
 (defmethod d-op "pow" [{:keys [op children]} variable]
   (let [[x e] children
         types [(number? x) (number? e)]]
@@ -83,7 +128,9 @@
       [false true] (dm/* (dm/* e
                                (dm/pow x (dm/- e 1)))
                          (d x variable))
-      (throw (Exception. "fully symbolic pow not implemented")))))
+      (d (dm/exp (dm/* e
+                       (dm/ln x)))
+         variable))))
 
 (defmethod d-op "if" [{:keys [op children]} variable]
   (let [[c t f] children]
@@ -94,12 +141,15 @@
 
 (defmethod d-op "exp" [{:keys [op children]} variable]
   (let [x (first children)]
-    (dm/* (dmp/s {:op "exp"
-                  :children [x]})
+    (dm/* (dm/exp x)
           (d x variable))))
+
+(defmethod d-op "float" [{:keys [op children]} variable]
+  (let [x (first children)]
+    (dmp/s {:op "float"
+            :children [(d x variable)]})))
 
 (defmethod d
   #{:op :children}
   [exp variable]
   (d-op exp variable))
-

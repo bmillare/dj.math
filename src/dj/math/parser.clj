@@ -11,7 +11,7 @@
                   (dp/s ws t ws))
         int-num (dp/alt (dp/t #"\d+")
                         (fn [x]
-                          (Integer/parseInt x)))
+                          (long (Integer/parseInt x))))
 	double-num (dp/alt (dp/t #"[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?")
                            (fn [x]
                              (Double/parseDouble x)))
