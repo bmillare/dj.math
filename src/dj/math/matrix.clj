@@ -479,3 +479,93 @@
 (defmethod dm/exp [:symbolic-expression] [x]
   (dmp/s {:op "exp"
           :children [x]}))
+
+;; Is there a way to generalize this to any Matrix type??
+
+;; auto-let weirdness, all nested lets reduce to concatenation of bindings
+;; operations are always performed on body
+(defmethod dm/auto-let
+  VectorVectorMatrix
+  [m]
+  (let [sym-names (mapv (fn [n]
+                          (dmp/s {:variable (dm/gensym (str "m" n))}))
+                        (range (count m)))
+        ms (seq m)
+        bindings (reduce (fn [ret [k v]]
+                           (if (or (number? v)
+                                   (:variable v))
+                             ret
+                             (if (:bindings v)
+                               (into ret (into (:bindings v)
+                                               [k (-> v
+                                                      :children
+                                                      first)]))
+                               (conj ret k v))))
+                         []
+                         (map vector
+                              sym-names
+                              ms))
+        mvs (map (fn [s v]
+                   (if (number? v)
+                     v
+                     s))
+                 sym-names
+                 ms)]
+    (if (empty? bindings)
+      m
+      (dmp/s {:op "let"
+              :bindings bindings
+              :children [(v (mapv vec
+                                  (partition (width m)
+                                             mvs)))]}))))
+
+(defmethod dm/auto-let
+  :symbolic-expression
+  [e]
+  (let [g (dmp/s {:variable (dm/gensym "g")})]
+    (case (set (keys e))
+      #{:op :children} (throw (Exception. "op")) #_ (dmp/s {:op "let"
+                               :bindings [g e]
+                               :children [g]})
+      #{:op :bindings :children} (throw (Exception. "let"))#_ (-> e
+                                     (update-in [:bindings]
+                                                into
+                                                [g e])
+                                     (assoc :children [g]))
+      #{:variable} e
+      (throw (Exception. "Shouldn't get here")))))
+
+(defmethod dm/auto-let
+  java.lang.Long
+  [x]
+  x)
+
+(defmethod dm/auto-let
+  java.lang.Double
+  [x]
+  x)
+
+(defmethod dmp/emit
+  dj.math.matrix.VectorVectorMatrix
+  [m]
+  #_ (v (mapv vec
+           (partition (width m)
+                      (map dmp/emit (seq m)))))
+  (mapv vec
+        (partition (width m)
+                   (map dmp/emit (seq m)))))
+
+(defn symbolic-jacobian-template
+  "
+state-vars specifies the order
+
+creates a jacobian template matrix
+"
+  [jacobian-map state-vars]
+  (v
+   (vec (for [rsv state-vars]
+          (vec (for [csv state-vars]
+                 (let [e ((jacobian-map rsv) csv)]
+                   (if (number? e)
+                     e
+                     (dmp/s {:variable (str "d" rsv "_d" csv)})))))))))

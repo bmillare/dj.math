@@ -139,10 +139,27 @@
 
 (defmulti emit symbolic-expression-dispatcher)
 
+(def ^:dynamic op-alias-map {"sqrt" "Math/sqrt"
+                             "pow" "Math/pow"
+                             "copy-sign" "Math/copySign"})
+
+(defn prefix-emitter [op-aliases]
+  (fn [s]
+    (binding [op-alias-map op-aliases]
+      (emit s))))
+
 (defmethod emit
   #{:op :children}
   [{:keys [op children]}]
+  (list* (symbol (or (op-alias-map op)
+                     op))
+         (map emit children)))
+
+(defmethod emit
+  #{:op :bindings :children}
+  [{:keys [op bindings children]}]
   (list* (symbol op)
+         (mapv emit bindings)
          (map emit children)))
 
 (defmethod emit
@@ -153,4 +170,12 @@
 (defmethod emit
   :default
   [x]
-  x)
+  (cond
+   (map? x) (reduce-kv (fn [ret k v]
+                         (assoc ret
+                           k
+                           (emit v)))
+                       {}
+                       x)
+   
+   :else x))
