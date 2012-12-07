@@ -33,6 +33,7 @@
       "double" (apply str "(double)" (map emit children))
       (cond
        (and (= op "pow")
+            (number? (second children))
             (= 2.0 (double (second children))))
        (let [v (emit (first children))]
          (str v "*" v))

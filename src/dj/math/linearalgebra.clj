@@ -205,7 +205,7 @@
         [x y z] (map (fn [n]
                        (dmp/s {:variable (str "b" n)}))
                      (range 3))]
-    (-> #_ (qr-decomp' (dmm/v [[a b c]
+    #_ (-> #_ (qr-decomp' (dmm/v [[a b c]
                                [d e f]
                                [g h i]]))
         #_ (qr-decomp' (dmm/v [[a b]

@@ -590,11 +590,11 @@ state-vars specifies the order
 
 creates a jacobian template matrix
 "
-  [jacobian-map state-vars]
+  [jacobian-map state-vars id->Ji]
   (v
    (vec (for [rsv state-vars]
           (vec (for [csv state-vars]
                  (let [e ((jacobian-map rsv) csv)]
                    (if (number? e)
                      e
-                     (dmp/s {:variable (str "d" rsv "_d" csv)})))))))))
+                     (dmp/s {:variable (id->Ji rsv csv)})))))))))
