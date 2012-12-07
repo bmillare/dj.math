@@ -168,6 +168,11 @@
   (symbol variable))
 
 (defmethod emit
+  clojure.lang.PersistentVector
+  [x]
+  (mapv emit x))
+
+(defmethod emit
   :default
   [x]
   (cond

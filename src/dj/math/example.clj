@@ -130,29 +130,61 @@
         I (dmm/identity-m height)]
     (qr-decomp-step' A I height I I)))
 
-
 (defn back-substitution
   "R must be in reduced row echelon form"
   [R b]
   (let [rows (vec (map (comp vec seq)
                        (dmm/row-seq R)))
         b (vec (seq b))]
-    (dm/letm [result (reduce (fn [v' i]
+    (dmm/v (vec (rseq (reduce (fn [v i]
                                 (let [bi (b i)
                                       ri (rows i)]
-                                  (conj v'
-                                        (dm/letm [v v']
-                                                 (dm/d (dm/- bi
-                                                             (reduce dm/+
-                                                                     0
-                                                                     (map dm/*
-                                                                          (subvec ri
-                                                                                  (inc i))
-                                                                          (rseq v))))
-                                                       (ri i))))))
+                                  (conj v
+                                        (dm/d (dm/- bi
+                                                    (reduce dm/+
+                                                            0
+                                                            (map dm/*
+                                                                 (subvec ri
+                                                                         (inc i))
+                                                                 (rseq v))))
+                                              (ri i)))))
                               []
-                              (reverse (range (count rows))))]
-             (dmm/v (vec (rseq result))))))
+                              (reverse (range (count rows)))))))))
+
+(defn back-substitution'
+  "R must be in reduced row echelon form"
+  [R b]
+  (let [rows (vec (map (comp vec seq)
+                       (dmm/row-seq R)))
+        b (vec (seq b))
+        syms (mapv (fn [n]
+                     (dmp/s {:variable (dm/gensym (str "v" n))}))
+                   (range (count rows)))
+        es (reduce (fn [bs i]
+                     (let [bi (b i)
+                           ri (rows i)]
+                       (conj bs
+                             (dm/d (dm/- bi
+                                         (reduce dm/+
+                                                 0
+                                                 (map dm/*
+                                                      (subvec ri
+                                                              (inc i))
+                                                      (rseq syms))))
+                                   (ri i)))))
+                   []
+                   (reverse (range (count rows))))]
+    ;; Weird bug here, can't have vec inside children???
+    #_ (dmp/s {:op "let"
+            :bindings (vec (mapcat vector
+                                   (rseq syms)
+                                   es))
+               :children [(vec (rseq es))]})
+    (dmp/s {:op "let"
+            :bindings (vec (mapcat vector
+                                   (rseq syms)
+                                   es))
+            :children syms})))
 
 (defn solve [A b]
   (let [{:keys [Q R]} (qr-decomp A)]
@@ -162,8 +194,8 @@
 (defn solve' [A b]
   (dm/letm [results (qr-decomp' A)]
            (let [{:keys [Q R]} results]
-             (back-substitution R (dm/* (dmm/t Q)
-                                        b)))))
+             (back-substitution' R (dm/* (dmm/t Q)
+                                         b)))))
 
 (let [[a b c d e f g h i] (map (fn [n]
                                     (dmp/s {:variable (str "A" n)}))
@@ -181,10 +213,17 @@
                          [g h i]])
                  (dmm/t (dmm/v [[x y z]])))
          dj.math.cemit/emit
+         #_ dj.math.parser/emit
          user/re))
 
 ;; solution [5 3 -2]
 #_ (let [[A0 A1 A2 A3 A4 A5 A6 A7 A8 A9] [1.0 1.0 1.0 0.0 2.0 5.0 2.0 5.0 -1.0]
          [b0 b1 b2] [6.0 -4.0 27.0]]
-     (let [m0_03DA8 (- A0 (Math/copySign (Math/sqrt (+ (+ (Math/pow A0 2) (Math/pow A3 2)) (Math/pow A6 2))) A0)) m1_03DA9 A3 m2_03DAA A6 m0_03DAB (/ m0_03DA8 (Math/sqrt (+ (+ (Math/pow m0_03DA8 2) (Math/pow m1_03DA9 2)) (Math/pow m2_03DAA 2)))) m1_03DAC (/ m1_03DA9 (Math/sqrt (+ (+ (Math/pow m0_03DA8 2) (Math/pow m1_03DA9 2)) (Math/pow m2_03DAA 2)))) m2_03DAD (/ m2_03DAA (Math/sqrt (+ (+ (Math/pow m0_03DA8 2) (Math/pow m1_03DA9 2)) (Math/pow m2_03DAA 2)))) m0_03DAE (+ (+ (* (- (* (* m1_03DAC m0_03DAB) 2)) A1) (* (- 1 (* (* m1_03DAC m1_03DAC) 2)) A4)) (* (- (* (* m1_03DAC m2_03DAD) 2)) A7)) m1_03DAF (+ (+ (* (- (* (* m1_03DAC m0_03DAB) 2)) A2) (* (- 1 (* (* m1_03DAC m1_03DAC) 2)) A5)) (* (- (* (* m1_03DAC m2_03DAD) 2)) A8)) m2_03DB0 (+ (+ (* (- (* (* m2_03DAD m0_03DAB) 2)) A1) (* (- (* (* m2_03DAD m1_03DAC) 2)) A4)) (* (- 1 (* (* m2_03DAD m2_03DAD) 2)) A7)) m3_03DB1 (+ (+ (* (- (* (* m2_03DAD m0_03DAB) 2)) A2) (* (- (* (* m2_03DAD m1_03DAC) 2)) A5)) (* (- 1 (* (* m2_03DAD m2_03DAD) 2)) A8)) m0_03DB2 (- 1 (* (* m0_03DAB m0_03DAB) 2)) m1_03DB3 (- (* (* m1_03DAC m0_03DAB) 2)) m2_03DB4 (- (* (* m2_03DAD m0_03DAB) 2)) m3_03DB5 (- (* (* m0_03DAB m1_03DAC) 2)) m4_03DB6 (- 1 (* (* m1_03DAC m1_03DAC) 2)) m5_03DB7 (- (* (* m2_03DAD m1_03DAC) 2)) m6_03DB8 (- (* (* m0_03DAB m2_03DAD) 2)) m7_03DB9 (- (* (* m1_03DAC m2_03DAD) 2)) m8_03DBA (- 1 (* (* m2_03DAD m2_03DAD) 2)) m0_03DBB (Math/copySign (Math/sqrt (+ (+ (Math/pow A0 2) (Math/pow A3 2)) (Math/pow A6 2))) A0) m1_03DBC (+ (+ (* (- 1 (* (* m0_03DAB m0_03DAB) 2)) A1) (* (- (* (* m0_03DAB m1_03DAC) 2)) A4)) (* (- (* (* m0_03DAB m2_03DAD) 2)) A7)) m2_03DBD (+ (+ (* (- 1 (* (* m0_03DAB m0_03DAB) 2)) A2) (* (- (* (* m0_03DAB m1_03DAC) 2)) A5)) (* (- (* (* m0_03DAB m2_03DAD) 2)) A8)) m4_03DBF (+ (+ (* (- (* (* m1_03DAC m0_03DAB) 2)) A1) (* (- 1 (* (* m1_03DAC m1_03DAC) 2)) A4)) (* (- (* (* m1_03DAC m2_03DAD) 2)) A7)) m5_03DC0 (+ (+ (* (- (* (* m1_03DAC m0_03DAB) 2)) A2) (* (- 1 (* (* m1_03DAC m1_03DAC) 2)) A5)) (* (- (* (* m1_03DAC m2_03DAD) 2)) A8)) m7_03DC2 (+ (+ (* (- (* (* m2_03DAD m0_03DAB) 2)) A1) (* (- (* (* m2_03DAD m1_03DAC) 2)) A4)) (* (- 1 (* (* m2_03DAD m2_03DAD) 2)) A7)) m8_03DC3 (+ (+ (* (- (* (* m2_03DAD m0_03DAB) 2)) A2) (* (- (* (* m2_03DAD m1_03DAC) 2)) A5)) (* (- 1 (* (* m2_03DAD m2_03DAD) 2)) A8)) m0_03DC4 (- m0_03DAE (Math/copySign (Math/sqrt (+ (Math/pow m0_03DAE 2) (Math/pow m2_03DB0 2))) m0_03DAE)) m1_03DC5 m2_03DB0 m0_03DC6 (/ m0_03DC4 (Math/sqrt (+ (Math/pow m0_03DC4 2) (Math/pow m1_03DC5 2)))) m1_03DC7 (/ m1_03DC5 (Math/sqrt (+ (Math/pow m0_03DC4 2) (Math/pow m1_03DC5 2)))) m0_03DC8 (+ (* (- (* (* m1_03DC7 m0_03DC6) 2)) m1_03DAF) (* (- 1 (* (* m1_03DC7 m1_03DC7) 2)) m3_03DB1)) m0_03DC9 m0_03DB2 m1_03DCA (+ (* m1_03DB3 (- 1 (* (* m0_03DC6 m0_03DC6) 2))) (* m2_03DB4 (- (* (* m0_03DC6 m1_03DC7) 2)))) m2_03DCB (+ (* m1_03DB3 (- (* (* m1_03DC7 m0_03DC6) 2))) (* m2_03DB4 (- 1 (* (* m1_03DC7 m1_03DC7) 2)))) m3_03DCC m3_03DB5 m4_03DCD (+ (* m4_03DB6 (- 1 (* (* m0_03DC6 m0_03DC6) 2))) (* m5_03DB7 (- (* (* m0_03DC6 m1_03DC7) 2)))) m5_03DCE (+ (* m4_03DB6 (- (* (* m1_03DC7 m0_03DC6) 2))) (* m5_03DB7 (- 1 (* (* m1_03DC7 m1_03DC7) 2)))) m6_03DCF m6_03DB8 m7_03DD0 (+ (* m7_03DB9 (- 1 (* (* m0_03DC6 m0_03DC6) 2))) (* m8_03DBA (- (* (* m0_03DC6 m1_03DC7) 2)))) m8_03DD1 (+ (* m7_03DB9 (- (* (* m1_03DC7 m0_03DC6) 2))) (* m8_03DBA (- 1 (* (* m1_03DC7 m1_03DC7) 2)))) m0_03DD2 m0_03DBB m1_03DD3 m1_03DBC m2_03DD4 m2_03DBD m4_03DD6 (Math/copySign (Math/sqrt (+ (Math/pow m0_03DAE 2) (Math/pow m2_03DB0 2))) m0_03DAE) m5_03DD7 (+ (* (- 1 (* (* m0_03DC6 m0_03DC6) 2)) m1_03DAF) (* (- (* (* m0_03DC6 m1_03DC7) 2)) m3_03DB1)) m8_03DDA (+ (* (- (* (* m1_03DC7 m0_03DC6) 2)) m1_03DAF) (* (- 1 (* (* m1_03DC7 m1_03DC7) 2)) m3_03DB1))] [[(/ (- (+ (+ (* m0_03DC9 b0) (* m3_03DCC b1)) (* m6_03DCF b2)) (+ (* m1_03DD3 (/ (- (+ (+ (* m1_03DCA b0) (* m4_03DCD b1)) (* m7_03DD0 b2)) (* m5_03DD7 (/ (+ (+ (* m2_03DCB b0) (* m5_03DCE b1)) (* m8_03DD1 b2)) m0_03DC8))) m4_03DD6)) (* m2_03DD4 (/ (+ (+ (* m2_03DCB b0) (* m5_03DCE b1)) (* m8_03DD1 b2)) m0_03DC8)))) m0_03DD2) (/ (- (+ (+ (* m1_03DCA b0) (* m4_03DCD b1)) (* m7_03DD0 b2)) (* m5_03DD7 (/ (+ (+ (* m2_03DCB b0) (* m5_03DCE b1)) (* m8_03DD1 b2)) m0_03DC8))) m4_03DD6) (/ (+ (+ (* m2_03DCB b0) (* m5_03DCE b1)) (* m8_03DD1 b2)) m0_03DC8)]]))
+     (let [m0_07F54 (- A0 (Math/copySign (Math/sqrt (+ (+ (Math/pow A0 2) (Math/pow A3 2)) (Math/pow A6 2))) A0)) m1_07F55 A3 m2_07F56 A6 m0_07F57 (/ m0_07F54 (Math/sqrt (+ (+ (Math/pow m0_07F54 2) (Math/pow m1_07F55 2)) (Math/pow m2_07F56 2)))) m1_07F58 (/ m1_07F55 (Math/sqrt (+ (+ (Math/pow m0_07F54 2) (Math/pow m1_07F55 2)) (Math/pow m2_07F56 2)))) m2_07F59 (/ m2_07F56 (Math/sqrt (+ (+ (Math/pow m0_07F54 2) (Math/pow m1_07F55 2)) (Math/pow m2_07F56 2)))) m0_07F5A (+ (+ (* (- (* (* m1_07F58 m0_07F57) 2)) A1) (* (- 1 (* (* m1_07F58 m1_07F58) 2)) A4)) (* (- (* (* m1_07F58 m2_07F59) 2)) A7)) m1_07F5B (+ (+ (* (- (* (* m1_07F58 m0_07F57) 2)) A2) (* (- 1 (* (* m1_07F58 m1_07F58) 2)) A5)) (* (- (* (* m1_07F58 m2_07F59) 2)) A8)) m2_07F5C (+ (+ (* (- (* (* m2_07F59 m0_07F57) 2)) A1) (* (- (* (* m2_07F59 m1_07F58) 2)) A4)) (* (- 1 (* (* m2_07F59 m2_07F59) 2)) A7)) m3_07F5D (+ (+ (* (- (* (* m2_07F59 m0_07F57) 2)) A2) (* (- (* (* m2_07F59 m1_07F58) 2)) A5)) (* (- 1 (* (* m2_07F59 m2_07F59) 2)) A8)) m0_07F5E (- 1 (* (* m0_07F57 m0_07F57) 2)) m1_07F5F (- (* (* m1_07F58 m0_07F57) 2)) m2_07F60 (- (* (* m2_07F59 m0_07F57) 2)) m3_07F61 (- (* (* m0_07F57 m1_07F58) 2)) m4_07F62 (- 1 (* (* m1_07F58 m1_07F58) 2)) m5_07F63 (- (* (* m2_07F59 m1_07F58) 2)) m6_07F64 (- (* (* m0_07F57 m2_07F59) 2)) m7_07F65 (- (* (* m1_07F58 m2_07F59) 2)) m8_07F66 (- 1 (* (* m2_07F59 m2_07F59) 2)) m0_07F67 (Math/copySign (Math/sqrt (+ (+ (Math/pow A0 2) (Math/pow A3 2)) (Math/pow A6 2))) A0) m1_07F68 (+ (+ (* (- 1 (* (* m0_07F57 m0_07F57) 2)) A1) (* (- (* (* m0_07F57 m1_07F58) 2)) A4)) (* (- (* (* m0_07F57 m2_07F59) 2)) A7)) m2_07F69 (+ (+ (* (- 1 (* (* m0_07F57 m0_07F57) 2)) A2) (* (- (* (* m0_07F57 m1_07F58) 2)) A5)) (* (- (* (* m0_07F57 m2_07F59) 2)) A8)) m4_07F6B (+ (+ (* (- (* (* m1_07F58 m0_07F57) 2)) A1) (* (- 1 (* (* m1_07F58 m1_07F58) 2)) A4)) (* (- (* (* m1_07F58 m2_07F59) 2)) A7)) m5_07F6C (+ (+ (* (- (* (* m1_07F58 m0_07F57) 2)) A2) (* (- 1 (* (* m1_07F58 m1_07F58) 2)) A5)) (* (- (* (* m1_07F58 m2_07F59) 2)) A8)) m7_07F6E (+ (+ (* (- (* (* m2_07F59 m0_07F57) 2)) A1) (* (- (* (* m2_07F59 m1_07F58) 2)) A4)) (* (- 1 (* (* m2_07F59 m2_07F59) 2)) A7)) m8_07F6F (+ (+ (* (- (* (* m2_07F59 m0_07F57) 2)) A2) (* (- (* (* m2_07F59 m1_07F58) 2)) A5)) (* (- 1 (* (* m2_07F59 m2_07F59) 2)) A8)) m0_07F70 (- m0_07F5A (Math/copySign (Math/sqrt (+ (Math/pow m0_07F5A 2) (Math/pow m2_07F5C 2))) m0_07F5A)) m1_07F71 m2_07F5C m0_07F72 (/ m0_07F70 (Math/sqrt (+ (Math/pow m0_07F70 2) (Math/pow m1_07F71 2)))) m1_07F73 (/ m1_07F71 (Math/sqrt (+ (Math/pow m0_07F70 2) (Math/pow m1_07F71 2)))) m0_07F74 (+ (* (- (* (* m1_07F73 m0_07F72) 2)) m1_07F5B) (* (- 1 (* (* m1_07F73 m1_07F73) 2)) m3_07F5D)) m0_07F75 m0_07F5E m1_07F76 (+ (* m1_07F5F (- 1 (* (* m0_07F72 m0_07F72) 2))) (* m2_07F60 (- (* (* m0_07F72 m1_07F73) 2)))) m2_07F77 (+ (* m1_07F5F (- (* (* m1_07F73 m0_07F72) 2))) (* m2_07F60 (- 1 (* (* m1_07F73 m1_07F73) 2)))) m3_07F78 m3_07F61 m4_07F79 (+ (* m4_07F62 (- 1 (* (* m0_07F72 m0_07F72) 2))) (* m5_07F63 (- (* (* m0_07F72 m1_07F73) 2)))) m5_07F7A (+ (* m4_07F62 (- (* (* m1_07F73 m0_07F72) 2))) (* m5_07F63 (- 1 (* (* m1_07F73 m1_07F73) 2)))) m6_07F7B m6_07F64 m7_07F7C (+ (* m7_07F65 (- 1 (* (* m0_07F72 m0_07F72) 2))) (* m8_07F66 (- (* (* m0_07F72 m1_07F73) 2)))) m8_07F7D (+ (* m7_07F65 (- (* (* m1_07F73 m0_07F72) 2))) (* m8_07F66 (- 1 (* (* m1_07F73 m1_07F73) 2)))) m0_07F7E m0_07F67 m1_07F7F m1_07F68 m2_07F80 m2_07F69 m4_07F82 (Math/copySign (Math/sqrt (+ (Math/pow m0_07F5A 2) (Math/pow m2_07F5C 2))) m0_07F5A) m5_07F83 (+ (* (- 1 (* (* m0_07F72 m0_07F72) 2)) m1_07F5B) (* (- (* (* m0_07F72 m1_07F73) 2)) m3_07F5D)) m8_07F86 (+ (* (- (* (* m1_07F73 m0_07F72) 2)) m1_07F5B) (* (- 1 (* (* m1_07F73 m1_07F73) 2)) m3_07F5D)) v2_07F8A (/ (+ (+ (* m2_07F77 b0) (* m5_07F7A b1)) (* m8_07F7D b2)) m0_07F74) v1_07F89 (/ (- (+ (+ (* m1_07F76 b0) (* m4_07F79 b1)) (* m7_07F7C b2)) (* m5_07F83 v2_07F8A)) m4_07F82) v0_07F88 (/ (- (+ (+ (* m0_07F75 b0) (* m3_07F78 b1)) (* m6_07F7B b2)) (+ (* m1_07F7F v2_07F8A) (* m2_07F80 v1_07F89))) m0_07F7E)] (/ (- (+ (+ (* m0_07F75 b0) (* m3_07F78 b1)) (* m6_07F7B b2)) (+ (* m1_07F7F v2_07F8A) (* m2_07F80 v1_07F89))) m0_07F7E) (/ (- (+ (+ (* m1_07F76 b0) (* m4_07F79 b1)) (* m7_07F7C b2)) (* m5_07F83 v2_07F8A)) m4_07F82) (/ (+ (+ (* m2_07F77 b0) (* m5_07F7A b1)) (* m8_07F7D b2)) m0_07F74)))
 
+(let [s (dmp/s {:op "let"
+                :bindings ["asdf" "asdf"]
+                :children [(vec (rseq [1 2.0]))]})]
+  (dj.math.parser/emit (dmp/s {:op "let"
+                               :bindings ["asdf" "asdf"]
+                               :children [[ s]]})))
