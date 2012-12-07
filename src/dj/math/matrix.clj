@@ -492,8 +492,6 @@
                         (range (count m)))
         ms (seq m)
         bindings (reduce (fn [ret [k v]]
-                           (user/! k {:pos :k-check
-                                      :v v})
                            (if (number? v)
                              ret
                              (if (:bindings v)
@@ -521,11 +519,41 @@
                                              mvs)))]}))))
 
 (defmethod dm/auto-let
+  clojure.lang.PersistentVector
+  [vec']
+  (let [sym-names (mapv (fn [n]
+                          (dmp/s {:variable (dm/gensym (str "v" n))}))
+                        (range (count vec')))
+        bindings (reduce (fn [ret [k v]]
+                           (if (number? v)
+                             ret
+                             (if (:bindings v)
+                               (into (vec ret) (into (vec (:bindings v))
+                                                     [k (-> v
+                                                            :children
+                                                            first)]))
+                               (conj ret k v))))
+                         []
+                         (map vector
+                              sym-names
+                              vec'))]
+    (if (empty? bindings)
+      vec'
+      (dmp/s {:op "let"
+              :bindings bindings
+              :children [(mapv (fn [s v]
+                                 (if (number? v)
+                                   v
+                                   s))
+                               sym-names
+                               vec')]}))))
+
+(defmethod dm/auto-let
   :symbolic-expression
   [e]
   (let [g (dmp/s {:variable (dm/gensym "g")})]
     (case (set (keys e))
-      #{:op :children} (throw (Exception. "op")) #_ (dmp/s {:op "let"
+      #{:op :children} (dmp/s {:op "let"
                                :bindings [g e]
                                :children [g]})
       #{:op :bindings :children} e #_ (-> e

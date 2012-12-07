@@ -63,7 +63,7 @@
       (dj/update-vals #(dj/update-vals % (comp str dj.math.parser/emit)))
       e)
   (-> sjt
-      dj.math.example/qr-decomp'
+      (dj.math.example/solve' (dj.math.matrix/t (dj.math.matrix/v [(vec state-vars)])))
       dj.math.cemit/emit
       re)
   #_ (-> sjt
@@ -83,10 +83,12 @@
 (dre nil)
 
 (require '[datomic.api :as d])
-(dre (seq (d/q '[:find ?ret
-                :where
-                 [?e :pos :if]]
-              @store)))
+(dre (let [s (seq (d/q '[:find ?ret
+                         :where
+                         [?e :pos :k-check]
+                         [?e :v ?ret]]
+                       @store))]
+       [s (count s)]))
 
 (reset! store [])
 

@@ -88,25 +88,21 @@
                :symbolic-expression
                (case (set (keys result#))
                  #{:op :children :bindings}
-                 (user/! (dmp/s {:op "let"
-                          :bindings (into (vec ~bindings-sym)
-                                          (into (vec (:bindings result#))
-                                                (let [fcr# (first (:children result#))]
-                                                  (case (set (keys fcr#))
-                                                    #{:op :children :bindings}
-                                                    (user/! (:bindings fcr#)
-                                                            {:pos :fcr})
-                                                    nil))))
-                          :children (:children result#)})
-                         {:pos :second-case})
+                 (dmp/s {:op "let"
+                         :bindings (into (vec ~bindings-sym)
+                                         (into (vec (:bindings result#))
+                                               (let [fcr# (first (:children result#))]
+                                                 (case (set (keys fcr#))
+                                                   #{:op :children :bindings}
+                                                   (:bindings fcr#)
+                                                   nil))))
+                         :children (:children result#)})
                  (dmp/s {:op "let"
                          :bindings ~bindings-sym
                          :children [result#]}))
-               (user/! (dmp/s {:op "let"
-                               :bindings ~bindings-sym
-                               :children [result#]})
-                       {:pos :end
-                        :bs ~bindings-sym}))))))))
+               (dmp/s {:op "let"
+                       :bindings ~bindings-sym
+                       :children [result#]}))))))))
 
 (def ^:dynamic gensym-counter (atom 0))
 

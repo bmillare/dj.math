@@ -60,9 +60,18 @@
 (defmethod emit
   dj.math.matrix.VectorVectorMatrix
   [m]
-  (apply str (mapv vec
-         (partition (dmm/width m)
-                    (map emit (seq m))))))
+  #_ (apply str (mapv vec
+                   (partition (dmm/width m)
+                              (map emit (seq m)))))
+  (apply str (map emit (seq m))))
+
+(defmethod emit
+  clojure.lang.PersistentVector
+  [m]
+  #_ (apply str (mapv vec
+                   (partition (dmm/width m)
+                              (map emit (seq m)))))
+  (apply str (map emit m)))
 
 (defmethod emit
   java.lang.Long
