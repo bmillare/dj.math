@@ -122,6 +122,14 @@
   (dmp/s {:op "if"
           :children [c t f]}))
 
+;; New Special forms
+
+;; Akin to clojure recur or a tail call, sets values to variables that
+;; is expected to leave scope. Like prepping for next loop
+;; iteration. From consts -> vars
+#_ (dmp/s {:op "bounce"
+           :bindings []})
+
 (defmacro def-commutative-method
   "sugar for defining a commutative method"
   [name

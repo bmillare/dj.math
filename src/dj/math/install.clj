@@ -59,10 +59,10 @@
                            state-vars)
       sjt (dj.math.matrix/symbolic-jacobian-template jacobian-map
                                                      state-vars)]
-  #_ (-> jacobian-map
+  (-> jacobian-map
       (dj/update-vals #(dj/update-vals % (comp str dj.math.parser/emit)))
       e)
-  (-> sjt
+  #_ (-> sjt
       (dj.math.example/solve' (dj.math.matrix/t (dj.math.matrix/v [(mapv (fn [x]
                                                                            (dj.math.parser/s {:variable x})) state-vars)])))
       dj.math.cemit/emit
@@ -132,3 +132,4 @@
 (user/run)
 
 (str ret)
+(load "dj/math/cemit")

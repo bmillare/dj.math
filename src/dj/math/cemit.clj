@@ -50,7 +50,9 @@
                             (str "const float " (emit s) " = " (emit e) ";\n")))
                (apply str (map emit children))
                ";}\n")
-    (throw (Exception. "Not a let but has bindings"))))
+    "bounce" (apply str (for [[s e] (partition 2 bindings)]
+                          (str (emit s) " = " (emit e) ";\n")))
+    (throw (Exception. (str "binding form not supported:" op)))))
 
 (defmethod emit
   #{:variable}

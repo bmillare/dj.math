@@ -1,4 +1,4 @@
-(ns dj.math.example
+(ns dj.math.linearalgebra
   (:require [dj.math :as dm]
             [dj.math.matrix :as dmm]
             [dj.math.parser :as dmp]))
