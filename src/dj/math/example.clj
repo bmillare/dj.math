@@ -175,12 +175,13 @@
                    []
                    (reverse (range (count rows))))]
     ;; Weird bug here, can't have vec inside children???
-    #_ (dmp/s {:op "let"
+    ;; probably has to do with letm
+    (dmp/s {:op "let"
             :bindings (vec (mapcat vector
                                    (rseq syms)
                                    es))
-               :children [(vec (rseq es))]})
-    (dmp/s {:op "let"
+            :children [(vec (rseq es))]})
+    #_ (dmp/s {:op "let"
             :bindings (vec (mapcat vector
                                    (rseq syms)
                                    es))
@@ -197,24 +198,25 @@
              (back-substitution' R (dm/* (dmm/t Q)
                                          b)))))
 
-(let [[a b c d e f g h i] (map (fn [n]
-                                    (dmp/s {:variable (str "A" n)}))
-                                  (range 9))
-         [x y z] (map (fn [n]
-                        (dmp/s {:variable (str "b" n)}))
-                      (range 3))]
-     (-> #_ (qr-decomp' (dmm/v [[a b c]
-                             [d e f]
-                             [g h i]]))
-         #_ (qr-decomp' (dmm/v [[a b]
-                                [c d]]))
-         (solve' (dmm/v [[a b c]
-                         [d e f]
-                         [g h i]])
-                 (dmm/t (dmm/v [[x y z]])))
-         dj.math.cemit/emit
-         #_ dj.math.parser/emit
-         user/re))
+(defn test-run []
+  (let [[a b c d e f g h i] (map (fn [n]
+                                   (dmp/s {:variable (str "A" n)}))
+                                 (range 9))
+        [x y z] (map (fn [n]
+                       (dmp/s {:variable (str "b" n)}))
+                     (range 3))]
+    (-> #_ (qr-decomp' (dmm/v [[a b c]
+                               [d e f]
+                               [g h i]]))
+        #_ (qr-decomp' (dmm/v [[a b]
+                               [c d]]))
+        (solve' (dmm/v [[a b c]
+                        [d e f]
+                        [g h i]])
+                (dmm/t (dmm/v [[x y z]])))
+        #_ dj.math.cemit/emit
+        dj.math.parser/emit
+        user/re)))
 
 ;; solution [5 3 -2]
 #_ (let [[A0 A1 A2 A3 A4 A5 A6 A7 A8 A9] [1.0 1.0 1.0 0.0 2.0 5.0 2.0 5.0 -1.0]

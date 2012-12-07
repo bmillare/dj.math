@@ -92,7 +92,12 @@
                          :bindings (into (vec ~bindings-sym)
                                          (into (vec (:bindings result#))
                                                (let [fcr# (first (:children result#))]
-                                                 (case (set (keys fcr#))
+                                                 (if (= (type fcr#)
+                                                        :symbolic-expression)
+                                                   (:bindings fcr#)
+                                                   nil)
+                                                 ;; WEIRD bug, the result of 'keys' is something nasty, i don't know why
+                                                 #_ (case (set (keys fcr#))
                                                    #{:op :children :bindings}
                                                    (:bindings fcr#)
                                                    nil))))
