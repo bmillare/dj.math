@@ -492,13 +492,15 @@
                         (range (count m)))
         ms (seq m)
         bindings (reduce (fn [ret [k v]]
+                           (user/! k {:pos :k-check
+                                      :v v})
                            (if (number? v)
                              ret
                              (if (:bindings v)
-                               (into ret (into (:bindings v)
-                                               [k (-> v
-                                                      :children
-                                                      first)]))
+                               (into (vec ret) (into (vec (:bindings v))
+                                                     [k (-> v
+                                                            :children
+                                                            first)]))
                                (conj ret k v))))
                          []
                          (map vector
@@ -526,7 +528,7 @@
       #{:op :children} (throw (Exception. "op")) #_ (dmp/s {:op "let"
                                :bindings [g e]
                                :children [g]})
-      #{:op :bindings :children} (throw (Exception. "let"))#_ (-> e
+      #{:op :bindings :children} e #_ (-> e
                                      (update-in [:bindings]
                                                 into
                                                 [g e])

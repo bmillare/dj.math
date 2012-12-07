@@ -32,84 +32,84 @@
 ;; auto-let, create bindings to expression, but pass through constants
 (defmulti auto-let type)
 
-(defn letm
-  "may or may not return a let exp"
-  ([f x]
-     (let [alx (auto-let x)]
-       (case (type alx)
-         :symbolic-expression #_ (let [xb (:bindings alx)]
-                                (if (empty? xb)
-                                  (f x)
-                                  (let [ret (f (first (:children alx)))]
-                                    (if (number? ret)
-                                      ret
-                                      (dmp/s {:op "let"
-                                              :bindings xb
-                                              :children [ret]})))))
-         (case (set (keys alx))
-           #{:op :children :bindings}
-           (let [xb (:bindings alx)
-                 ret (f (first (:children alx)))]
-             (dmp/s {:op "let"
-                     :bindings xb
-                     :children [ret]}))
-           (f x))
-         (f x))))
-  ([f x y]
-     (let [alx (auto-let x)
-           aly (auto-let y)]
-       (let [[xb xc] (if (= (type alx)
-                            :symbolic-expression)
-                       [(:bindings alx) (first (:children alx))]
-                       [[] x])
-             [yb yc] (if (= (type aly)
-                            :symbolic-expression)
-                       [(:bindings aly) (first (:children aly))]
-                       [[] y])
-             ;; not sure if this is fast enough BUG?
-             bindings (into xb yb)]
-         (if (empty? bindings)
-           (f x y)
-           (let [ret (f xc
-                        yc)]
-             (if (number? ret)
-               ret
-               (dmp/s {:op "let"
-                       :bindings bindings
-                       :children [ret]})))))))
-  ([f x y z]
-     (let [alx (auto-let x)
-           aly (auto-let y)
-           alz (auto-let z)]
-       (let [[xb xc] (if (= (type alx)
-                            :symbolic-expression)
-                       [(:bindings alx) (first (:children alx))]
-                       [[] x])
-             [yb yc] (if (= (type aly)
-                            :symbolic-expression)
-                       [(:bindings aly) (first (:children aly))]
-                       [[] y])
-             [zb zc] (if (= (type alz)
-                            :symbolic-expression)
-                       [(:bindings alz) (first (:children alz))]
-                       [[] z])
-             ;; not sure if this is fast enough BUG?
-             bindings (into xb (into yb zb))]
-         (if (empty? bindings)
-           (f x y z)
-           (let [ret (f xc
-                        yc
-                        zc)]
-             (if (number? ret)
-               ret
-               (dmp/s {:op "let"
-                       :bindings bindings
-                       :children [ret]}))))))))
+(defmacro letm [bindings ret]
+  (let [pairs (partition 2 bindings)
+        cp (count pairs)
+        als (take cp
+                  (repeatedly (fn []
+                                (clojure.core/gensym "al"))))
+        bs (take cp
+                 (repeatedly (fn []
+                               (clojure.core/gensym "b"))))
+        cs (take cp
+                 (repeatedly (fn []
+                               (clojure.core/gensym "c"))))
+        bindings-sym (clojure.core/gensym "bindings")
+        syms (map first pairs)
+        xs (take cp
+                 (repeatedly (fn []
+                               (clojure.core/gensym "x"))))
+        es (map second pairs)]
+    `(let ~(into (vec
+                  (mapcat (fn [x e]
+                            `(~x ~e))
+                          xs
+                          es))
+                 (into (vec
+                        (mapcat (fn [alx x]
+                                  `(~alx (auto-let ~x)))
+                                als
+                                xs))
+                       (into (vec
+                              (mapcat (fn [alx xb xc x]
+                                        `[[~xb ~xc] (if (= (type ~alx)
+                                                           :symbolic-expression)
+                                                      [(:bindings ~alx) (first (:children ~alx))]
+                                                      [[] ~x])])
+                                      als
+                                      bs
+                                      cs
+                                      xs))
+                             [bindings-sym `(concat ~@bs)])))
+       (if (empty? ~bindings-sym)
+         (let ~(vec (mapcat (fn [s x]
+                              [s x])
+                            syms
+                            xs))
+           ~ret)
+         (let [result# (let ~(vec (mapcat (fn [s cx]
+                                            [s cx])
+                                          syms
+                                          cs))
+                         ~ret)]
+           (if (number? result#)
+             result#
+             (case (type result#)
+               :symbolic-expression
+               (case (set (keys result#))
+                 #{:op :children :bindings}
+                 (user/! (dmp/s {:op "let"
+                          :bindings (into (vec ~bindings-sym)
+                                          (into (vec (:bindings result#))
+                                                (let [fcr# (first (:children result#))]
+                                                  (case (set (keys fcr#))
+                                                    #{:op :children :bindings}
+                                                    (user/! (:bindings fcr#)
+                                                            {:pos :fcr})
+                                                    nil))))
+                          :children (:children result#)})
+                         {:pos :second-case})
+                 (dmp/s {:op "let"
+                         :bindings ~bindings-sym
+                         :children [result#]}))
+               (user/! (dmp/s {:op "let"
+                               :bindings ~bindings-sym
+                               :children [result#]})
+                       {:pos :end
+                        :bs ~bindings-sym}))))))))
 
-;; not sure if I want to overwrite let name right now....
-(defmulti elet (fn [_ x]
-                 (type x)))
 (def ^:dynamic gensym-counter (atom 0))
+
 (defn gensym [prefix]
   (str prefix
        "_"

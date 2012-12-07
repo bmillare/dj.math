@@ -64,8 +64,7 @@
       e)
   (-> sjt
       dj.math.example/qr-decomp'
-      dj.math.parser/emit
-      pr-str
+      dj.math.cemit/emit
       re)
   #_ (-> sjt
       (.vvm)
@@ -84,14 +83,11 @@
 (dre nil)
 
 (require '[datomic.api :as d])
-(dre (seq (d/q '[:find ?ret ?g 
+(dre (seq (d/q '[:find ?ret
                 :where
-                 [?e :g ?g]
-                 [?e :return ?ret]]
+                 [?e :pos :if]]
               @store)))
-(dre @store)
 
 (reset! store [])
 
 (load "dj/math/example")
-
