@@ -133,11 +133,17 @@ The returned fn already binds symbolic-d
          variable))))
 
 (defmethod d-op "if" [{:keys [op children]} variable]
-  (let [[c t f] children]
-    (dmp/s {:op "if"
-            :children [c
-                       (d t variable)
-                       (d f variable)]})))
+  (let [[c t f] children
+        t' (d t variable)
+        f' (d f variable)]
+    (if (and (number? t')
+             (number? f')
+             (= (double t') (double f')))
+      t'
+      (dmp/s {:op "if"
+              :children [c
+                         t'
+                         f']}))))
 
 (defmethod d-op "exp" [{:keys [op children]} variable]
   (let [x (first children)]

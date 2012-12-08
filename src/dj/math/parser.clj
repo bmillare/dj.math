@@ -163,7 +163,12 @@
                  (mapv emit bindings)
                  (map emit children))
     "bounce" `(recur ~@(map second bindings))
-    (throw (Exception. (str "binding form not supported:" op) ))))
+    (throw (Exception. (str "binding form not supported:" op)))))
+
+(defmethod emit
+  #{:op :bindings :children :returns}
+  [{:keys [op bindings children]}]
+  (throw (Exception. (str "returns form not supported:" op))))
 
 (defmethod emit
   #{:variable}

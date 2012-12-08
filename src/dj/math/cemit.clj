@@ -31,6 +31,14 @@
       "!=" (interpose-children "!=")
       "float" (apply str "(float)" (map emit children))
       "double" (apply str "(double)" (map emit children))
+      "if" (let [[c t f] children]
+             (if (and (number? t)
+                      (number? f)
+                      (= (double t) (double f)))
+               t
+               (str "("(emit (first children)) ") ? "
+                    (emit (second children)) " : "
+                    (emit (nth children 2)))))
       (cond
        (and (= op "pow")
             (number? (second children))
@@ -50,10 +58,34 @@
                (apply str (for [[s e] (partition 2 bindings)]
                             (str "const float " (emit s) " = " (emit e) ";\n")))
                (apply str (map emit children))
-               ";}\n")
-    "bounce" (apply str (for [[s e] (partition 2 bindings)]
-                          (str (emit s) " = " (emit e) ";\n")))
+               "}\n")
     (throw (Exception. (str "binding form not supported:" op)))))
+
+(defmethod emit
+  #{:op :bindings :children :returns}
+  [{:keys [op bindings children returns]}]
+  (case op
+    "let" (str (apply str (for [[s _] (partition 2 returns)]
+                            (str "float " (emit s)";\n")))
+               "{\n"
+               (apply str (for [[s e] (partition 2 bindings)]
+                            (str "const float " (emit s) " = " (emit e) ";\n")))
+               (apply str (map emit children))
+               (apply str (for [[s e] (partition 2 returns)]
+                            (str (emit s) " = " (emit e) ";\n")))
+               "}\n")
+    (throw (Exception. (str "binding form not supported:" op)))))
+
+;; Not sure if useful
+#_ (defmethod emit
+     #{:op :bindings}
+     [{:keys [op bindings]}]
+     (case op
+       "bounce" (apply str (for [[s e] (partition 2 bindings)]
+                             (str "const float " (emit s) " = " (emit e) ";\n")))
+       "return" (apply str (for [[s e] (partition 2 bindings)]
+                             (str (emit s) " = " (emit e) ";\n")))
+       (throw (Exception. (str "binding form not supported:" op)))))
 
 (defmethod emit
   #{:variable}

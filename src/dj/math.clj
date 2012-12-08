@@ -119,8 +119,12 @@
 
 
 (defn ? [c t f]
-  (dmp/s {:op "if"
-          :children [c t f]}))
+  (if (and (number? t)
+           (number? f)
+           (= (double t) (double f)))
+    t
+    (dmp/s {:op "if"
+            :children [c t f]})))
 
 ;; New Special forms
 
@@ -129,6 +133,10 @@
 ;; iteration. From consts -> vars
 #_ (dmp/s {:op "bounce"
            :bindings []})
+
+;; :op "let" can have a returns form now. Akin to a function
+;; returning. Declares variables and sets values to variables that is
+;; expected to capture them in the future.
 
 (defmacro def-commutative-method
   "sugar for defining a commutative method"
