@@ -1,7 +1,8 @@
 (ns dj.math
   (:refer-clojure :exclude [* + - gensym])
   (:require [dj.peg :as dp]
-            [dj.math.parser :as dmp]))
+            [dj.math.parser :as dmp]
+            [dj.math.bindings :as dmb]))
 
 (defn dispatch
   "assumes arity greater than 2 is the same type"
@@ -65,12 +66,12 @@
                                         `[[~xb ~xc] (if (= (type ~alx)
                                                            :symbolic-expression)
                                                       [(:bindings ~alx) (first (:children ~alx))]
-                                                      [[] ~x])])
+                                                      [(dmb/pairs->bindings []) ~x])])
                                       als
                                       bs
                                       cs
                                       xs))
-                             [bindings-sym `(concat ~@bs)])))
+                             [bindings-sym `(dmb/join ~@bs)])))
        (if (empty? ~bindings-sym)
          (let ~(vec (mapcat (fn [s x]
                               [s x])
@@ -89,18 +90,13 @@
                (case (set (keys result#))
                  #{:op :children :bindings}
                  (dmp/s {:op "let"
-                         :bindings (into (vec ~bindings-sym)
-                                         (into (vec (:bindings result#))
-                                               (let [fcr# (first (:children result#))]
-                                                 (if (= (type fcr#)
-                                                        :symbolic-expression)
-                                                   (:bindings fcr#)
-                                                   nil)
-                                                 ;; WEIRD bug, the result of 'keys' is something nasty, i don't know why
-                                                 #_ (case (set (keys fcr#))
-                                                   #{:op :children :bindings}
-                                                   (:bindings fcr#)
-                                                   nil))))
+                         :bindings (dmb/join ~bindings-sym
+                                             (:bindings result#)
+                                             (let [fcr# (first (:children result#))]
+                                               (if (= (type fcr#)
+                                                      :symbolic-expression)
+                                                 (:bindings fcr#)
+                                                 nil)))
                          :children (:children result#)})
                  (dmp/s {:op "let"
                          :bindings ~bindings-sym
@@ -132,7 +128,7 @@
 ;; is expected to leave scope. Like prepping for next loop
 ;; iteration. From consts -> vars
 #_ (dmp/s {:op "bounce"
-           :bindings []})
+           :bindings nil})
 
 ;; :op "let" can have a returns form now. Akin to a function
 ;; returning. Declares variables and sets values to variables that is

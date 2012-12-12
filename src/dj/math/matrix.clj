@@ -1,6 +1,7 @@
 (ns dj.math.matrix
   (:require [dj.math :as dm]
-            [dj.math.parser :as dmp]))
+            [dj.math.parser :as dmp]
+            [dj.math.bindings :as dmb]))
 
 (defprotocol Itranspose
   (t [m]))
@@ -491,21 +492,38 @@
                           (dmp/s {:variable (dm/gensym (str "m" n))}))
                         (range (count m)))
         ms (seq m)
+        ;; if I want to remove redundant symbols this is where
+
+        ;; the redudancy is this: if v is a variable, I should be able
+        ;; to pass the variable symbol straight through. What's
+        ;; important is that I make sure mvs also gets updated in that
+        ;; ms also passes through.
         bindings (reduce (fn [ret [k v]]
-                           (if (number? v)
+                           (if #_ (or (number? v)
+                                   (and (= (type v)
+                                           :symbolic-expression)
+                                        (:variable v)))
+                               (number? v)
                              ret
-                             (if (:bindings v)
-                               (into (vec ret) (into (vec (:bindings v))
-                                                     [k (-> v
-                                                            :children
-                                                            first)]))
-                               (conj ret k v))))
-                         []
-                         (map vector
-                              sym-names
-                              ms))
+                             (if-let [child-bindings (:bindings v)]
+                               (dmb/join ret
+                                         (dmb/append child-bindings
+                                                     k
+                                                     (-> v
+                                                         :children
+                                                         first)))
+                               (dmb/append ret
+                                           k
+                                           v))))
+                         (dmb/pairs->bindings [])
+                         (seq (dmb/zip->bindings sym-names
+                                                 ms)))
         mvs (map (fn [s v]
-                   (if (number? v)
+                   (if #_ (or (number? v)
+                           (and (= (type v)
+                                   :symbolic-expression)
+                                (:variable v)))
+                       (number? v)
                      v
                      s))
                  sym-names
@@ -525,24 +543,35 @@
                           (dmp/s {:variable (dm/gensym (str "v" n))}))
                         (range (count vec')))
         bindings (reduce (fn [ret [k v]]
-                           (if (number? v)
+                           (if #_ (or (number? v)
+                                   (and (= (type v)
+                                           :symbolic-expression)
+                                        (:variable v)))
+                               (number? v)
                              ret
-                             (if (:bindings v)
-                               (into (vec ret) (into (vec (:bindings v))
-                                                     [k (-> v
-                                                            :children
-                                                            first)]))
-                               (conj ret k v))))
-                         []
-                         (map vector
-                              sym-names
-                              vec'))]
+                             (if-let [child-bindings (:bindings v)]
+                               (dmb/join ret
+                                         (dmb/append child-bindings
+                                                     k
+                                                     (-> v
+                                                         :children
+                                                         first)))
+                               (dmb/append ret
+                                           k
+                                           v))))
+                         (dmb/pairs->bindings [])
+                         (seq (dmb/zip->bindings sym-names
+                                                 vec')))]
     (if (empty? bindings)
       vec'
       (dmp/s {:op "let"
               :bindings bindings
               :children [(mapv (fn [s v]
-                                 (if (number? v)
+                                 (if #_ (or (number? v)
+                                         (and (= (type v)
+                                                 :symbolic-expression)
+                                              (:variable v)))
+                                     (number? v)
                                    v
                                    s))
                                sym-names
@@ -554,13 +583,9 @@
   (let [g (dmp/s {:variable (dm/gensym "g")})]
     (case (set (keys e))
       #{:op :children} (dmp/s {:op "let"
-                               :bindings [g e]
+                               :bindings (dmb/pairs->bindings [[g e]])
                                :children [g]})
-      #{:op :bindings :children} e #_ (-> e
-                                     (update-in [:bindings]
-                                                into
-                                                [g e])
-                                     (assoc :children [g]))
+      #{:op :bindings :children} e
       #{:variable} e
       (throw (Exception. "Shouldn't get here")))))
 

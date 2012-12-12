@@ -160,9 +160,8 @@
   [{:keys [op bindings children]}]
   (case op
     "let" (list* (symbol op)
-                 (mapv emit bindings)
+                 (mapv emit (apply concat (.pairs bindings)))
                  (map emit children))
-    "bounce" `(recur ~@(map second bindings))
     (throw (Exception. (str "binding form not supported:" op)))))
 
 (defmethod emit
