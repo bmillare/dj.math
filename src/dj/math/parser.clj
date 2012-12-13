@@ -151,9 +151,17 @@
 (defmethod emit
   #{:op :children}
   [{:keys [op children]}]
-  (list* (symbol (or (op-alias-map op)
-                     op))
-         (map emit children)))
+  (let [default (fn []
+                  (list* (symbol (or (op-alias-map op)
+                        op))
+            (map emit children)))]
+    (case op
+      "pow" (if (and (number? (second children))
+                     (= 2.0 (double (second children))))
+              (let [v (emit (first children))]
+                `(* ~v ~v))
+              (default))
+      (default))))
 
 (defmethod emit
   #{:op :bindings :children}
@@ -166,8 +174,12 @@
 
 (defmethod emit
   #{:op :bindings :children :returns}
-  [{:keys [op bindings children]}]
-  (throw (Exception. (str "returns form not supported:" op))))
+  [{:keys [op bindings children returns]}]
+  (case op
+    "let" (list* (symbol op)
+                 (mapv emit (apply concat (.pairs bindings)))
+                 (map emit children))
+    (throw (Exception. (str "returns form not supported:" op)))))
 
 (defmethod emit
   #{:variable}
