@@ -52,6 +52,18 @@
                   (interpose-children ","))))))
 
 (defmethod emit
+  #{:op :bindings}
+  [{:keys [op bindings]}]
+  (case op
+    "recur" (str (apply str (for [[s e] (seq bindings)]
+                              (str (emit s) " = " (emit e) ";\n")))
+                 "continue;\n")
+    "return" (str (apply str (for [[s e] (seq bindings)]
+                               (str (emit s) " = " (emit e) ";\n")))
+                  "break;\n")
+    (throw (Exception. (str "op/bindings form not supported:" op)))))
+
+(defmethod emit
   #{:op :bindings :children}
   [{:keys [op bindings children]}]
   (case op
@@ -63,32 +75,17 @@
     (throw (Exception. (str "binding form not supported:" op)))))
 
 (defmethod emit
-  #{:op :bindings :children :returns}
-  [{:keys [op bindings children returns]}]
-  (let [return-pairs (seq returns)]
-    (case op
-      "let" (str (apply str (for [[s _] return-pairs]
-                              (str "float " (emit s)";\n")))
-                 "{\n"
-                 (apply str (for [[s e] (seq bindings)]
-                              (str "const float " (emit s) " = " (emit e) ";\n")))
-                 (apply str (map emit children))
-                 (apply str (for [[s e] return-pairs]
-                              (str (emit s) " = " (emit e) ";\n")))
-                 "}\n")
-      (throw (Exception. (str "binding form not supported:" op))))))
-
-;; Not sure if useful
-#_ (defmethod emit
-     #{:op :bindings}
-     [{:keys [op bindings]}]
-     (let [binding-pairs (seq bindings)]
-       (case op
-         "bounce" (apply str (for [[s e] binding-pairs]
-                               (str "const float " (emit s) " = " (emit e) ";\n")))
-         "return" (apply str (for [[s e] binding-pairs]
-                               (str (emit s) " = " (emit e) ";\n")))
-         (throw (Exception. (str "binding form not supported:" op))))))
+  #{:op :init-bindings :variable-map :children}
+  [{:keys [op init-bindings variable-map children]}]
+  (case op
+    "loop" (str (apply str (for [[s _] (seq init-bindings)]
+                             (str "float " (emit s)";\n")))
+                (apply str (for [s (keys variable-map)]
+                             (str "float " (emit (keys s))";\n")))
+                "for (;;) {\n"
+                (apply str (map emit children))
+                "}\n")
+    (throw (Exception. (str "op/init-bindings/children form not supported:" op)))))
 
 (defmethod emit
   #{:variable}

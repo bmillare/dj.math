@@ -164,22 +164,36 @@
       (default))))
 
 (defmethod emit
+  #{:op :bindings}
+  [{:keys [op bindings]}]
+  (case op
+    "recur" (list* (symbol op)
+                   (map (comp emit second) (seq bindings)))
+    "return" (reduce (fn [m [s e]]
+                       (assoc m
+                         (keyword s)
+                         (emit e)))
+                     {}
+                     (seq bindings))
+    (throw (Exception. (str "op/bindings form not supported:" op)))))
+
+(defmethod emit
   #{:op :bindings :children}
   [{:keys [op bindings children]}]
   (case op
     "let" (list* (symbol op)
                  (mapv emit (apply concat (.pairs bindings)))
                  (map emit children))
-    (throw (Exception. (str "binding form not supported:" op)))))
+    (throw (Exception. (str "op/bindings/children form not supported:" op)))))
 
 (defmethod emit
-  #{:op :bindings :children :returns}
-  [{:keys [op bindings children returns]}]
+  #{:op :init-bindings :return-declarations :children}
+  [{:keys [op init-bindings children]}]
   (case op
-    "let" (list* (symbol op)
-                 (mapv emit (apply concat (.pairs bindings)))
-                 (map emit children))
-    (throw (Exception. (str "returns form not supported:" op)))))
+    "loop" (list* (symbol op)
+                  (mapv emit (apply concat (.pairs init-bindings)))
+                  (map emit children))
+    (throw (Exception. (str "op/init-bindings/children form not supported:" op)))))
 
 (defmethod emit
   #{:variable}

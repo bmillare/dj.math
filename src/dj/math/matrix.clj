@@ -586,6 +586,9 @@
                                :bindings (dmb/pairs->bindings [[g e]])
                                :children [g]})
       #{:op :bindings :children} e
+      #{:op :init-bindings :variable-map :children} (dmp/s {:op "let"
+                                                            :bindings (dmb/pairs->bindings [[g e]])
+                                                            :children [g]})
       #{:variable} e
       (throw (Exception. "Shouldn't get here")))))
 

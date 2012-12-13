@@ -98,6 +98,17 @@
                                                  (:bindings fcr#)
                                                  nil)))
                          :children (:children result#)})
+                 #{:op :init-bindings :return-declarations :children}
+                 (dmp/s {:op "let"
+                         ;;;;;;;;;;;;;;;;;
+                         :bindings (dmb/join ~bindings-sym
+                                             (:bindings result#)
+                                             (let [fcr# (first (:children result#))]
+                                               (if (= (type fcr#)
+                                                      :symbolic-expression)
+                                                 (:bindings fcr#)
+                                                 nil)))
+                         :children (:children result#)})
                  (dmp/s {:op "let"
                          :bindings ~bindings-sym
                          :children [result#]}))
@@ -127,12 +138,32 @@
 ;; Akin to clojure recur or a tail call, sets values to variables that
 ;; is expected to leave scope. Like prepping for next loop
 ;; iteration. From consts -> vars
-#_ (dmp/s {:op "bounce"
+#_ (dmp/s {:op "recur"
            :bindings nil})
 
-;; :op "let" can have a returns form now. Akin to a function
-;; returning. Declares variables and sets values to variables that is
-;; expected to capture them in the future.
+#_ (dmp/s {:op "loop"
+           :init-bindings nil
+           :children nil})
+
+;; necessary??
+#_ (defn destructure
+  "
+The container forms can now return binding-maps which are keywords ->
+expressions. destructure will take this map, a keyword -> variables
+map, and return bindings
+"
+  [expression-map variable-map]
+  (dmb/pairs->bindings (reduce-kv (fn [pairs k v]
+                                    (if-let [e (expression-map k)]
+                                      (conj pairs [v e])
+                                      (throw (Exception. (str "Expression not found for keyword:" k)))))
+                                  []
+                                  variable-map)))
+
+(defn loope [init-bindings child]
+  (dmp/s {:op "loop"
+          :init-bindings init-bindings
+          :children [child]}))
 
 (defmacro def-commutative-method
   "sugar for defining a commutative method"

@@ -86,3 +86,5 @@ takes two sequences and creates a bindings from x->y
              x
              args)))
 
+(defn ordered-keys [bs]
+  (map first (.pairs bs)))
