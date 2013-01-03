@@ -54,22 +54,33 @@
                                              (str (emit s) " = " (emit e) ";\n")))
                                 "break;\n")
                   (throw (Exception. (str "op/bindings form not supported:" op)))))
+              #{:op :symbols}
+              (fn [{:keys [op symbols]}]
+                (case op
+                  "destructure" (apply str (for [s symbols]
+                                             (str "float " (emit s) ";\n")))
+                  (throw (Exception. (str "op/symbols form not supported:" op)))))
               #{:op :bindings :children}
               (fn [{:keys [op bindings children]}]
                 (case op
                   "let" (str "{\n"
                              (apply str (for [[s e] (seq bindings)]
-                                          (str "const float " (emit s) " = " (emit e) ";\n")))
+                                          ;; clean up this condition once we refactor how we dispatch
+                                          (if (let [ts (type s)]
+                                                (and (= ts
+                                                        :symbolic-expression)
+                                                     (= (set (keys))
+                                                        #{:op :symbols})))
+                                            (str (emit s) (emit e))
+                                            (str "const float " (emit s) " = " (emit e) ";\n"))))
                              (apply str (map emit children))
                              "}\n")
                   (throw (Exception. (str "binding form not supported:" op)))))
-              #{:op :init-bindings :variable-map :children}
-              (fn [{:keys [op init-bindings variable-map children]}]
+              #{:op :init-bindings :children}
+              (fn [{:keys [op init-bindings children]}]
                 (case op
-                  "loop" (str (apply str (for [[s _] (seq init-bindings)]
-                                           (str "float " (emit s)";\n")))
-                              (apply str (for [s (keys variable-map)]
-                                           (str "float " (emit (keys s))";\n")))
+                  "loop" (str (apply str (for [[s e] (seq init-bindings)]
+                                           (str "float " (emit s) " = " (emit e) ";\n")))
                               "for (;;) {\n"
                               (apply str (map emit children))
                               "}\n")

@@ -78,3 +78,5 @@
 
 (str ret)
 (load "dj/math/cemit")
+
+(e (dj.git/changed-projects))

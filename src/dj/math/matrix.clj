@@ -602,7 +602,7 @@
   [x]
   x)
 
-(defmethod dmp/emit
+#_ (defmethod dmp/emit
   dj.math.matrix.VectorVectorMatrix
   [m]
   #_ (v (mapv vec

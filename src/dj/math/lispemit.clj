@@ -33,6 +33,11 @@
                                    {}
                                    (seq bindings))
                   (throw (Exception. (str "op/bindings form not supported:" op)))))
+              #{:op :symbols}
+              (fn [{:keys [op symbols]}]
+                (case op
+                  "destructure" {:keys (mapv emit symbols)}
+                  (throw (Exception. (str "op/symbols form not supported:" op)))))
               #{:op :bindings :children}
               (fn [{:keys [op bindings children]}]
                 (case op
@@ -40,7 +45,7 @@
                                (mapv emit (apply concat (.pairs bindings)))
                                (map emit children))
                   (throw (Exception. (str "op/bindings/children form not supported:" op)))))
-              #{:op :init-bindings :return-declarations :children}
+              #{:op :init-bindings :children}
               (fn [{:keys [op init-bindings children]}]
                 (case op
                   "loop" (list* (symbol op)
