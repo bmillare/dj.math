@@ -3,74 +3,75 @@
             [dj.math.parser :as dmp]
             [dj.plurality :as dp]))
 
+;; There is an issue of extensibility with mutual different
+;; plural-fns, how can we access or extend called plural-fns?
+
+;; For now, for the sake of moving forward, we will just define
+;; non-extensible plural-fns
+
 (defn lisp-emitter
   ([op-alias-map]
      (dj/var-let
-      [emit (dp/->simple-multi-fn
-             {#{:op :children}
-              (fn [{:keys [op children]}]
-                (reset! user/log @emit)
-                (let [default (fn []
-                                (list* (symbol (or (op-alias-map op)
-                                                   op))
-                                       (map emit children)))]
-                  (case op
-                    "pow" (if (and (number? (second children))
-                                   (= 2.0 (double (second children))))
-                            (let [v (emit (first children))]
-                              `(* ~v ~v))
-                            (default))
-                    (default))))
-              #{:op :bindings}
-              (fn [{:keys [op bindings]}]
-                (case op
-                  "recur" (list* (symbol op)
-                                 (map (comp emit second) (seq bindings)))
-                  "return" (reduce (fn [m [s e]]
-                                     (assoc m
-                                       (keyword s)
-                                       (emit e)))
-                                   {}
-                                   (seq bindings))
-                  (throw (Exception. (str "op/bindings form not supported:" op)))))
-              #{:op :symbols}
-              (fn [{:keys [op symbols]}]
-                (case op
-                  "destructure" {:keys (mapv emit symbols)}
-                  (throw (Exception. (str "op/symbols form not supported:" op)))))
-              #{:op :bindings :children}
-              (fn [{:keys [op bindings children]}]
-                (case op
-                  "let" (list* (symbol op)
-                               (mapv emit (apply concat (.pairs bindings)))
-                               (map emit children))
-                  (throw (Exception. (str "op/bindings/children form not supported:" op)))))
-              #{:op :init-bindings :children}
-              (fn [{:keys [op init-bindings children]}]
-                (case op
-                  "loop" (list* (symbol op)
-                                (mapv emit (apply concat (.pairs init-bindings)))
-                                (map emit children))
-                  (throw (Exception. (str "op/init-bindings/children form not supported:" op)))))
-              #{:variable}
-              (fn [{:keys [variable]}]
-                (symbol variable))
-              clojure.lang.PersistentVector
-              (fn [x]
-                (mapv emit x))}
-             (fn [x]
-               (cond
-                (map? x) (reduce-kv (fn [ret k v]
-                                      (assoc ret
-                                        k
-                                        (emit v)))
-                                    {}
-                                    x)
-                :else x))
-             dmp/symbolic-expression-dispatcher)]
-                 @emit))
+      [emit (let [emit-fn (fn [op children]
+                            (list* (symbol (or (op-alias-map op)
+                                               op))
+                                   (map emit children)))]
+              (dp/->simple-multi-fn
+               {"pow"
+                (fn [{:keys [op children]}]
+                  (if (and (number? (second children))
+                           (= 2.0 (double (second children))))
+                    (let [v (emit (first children))]
+                      `(* ~v ~v))
+                    (emit-fn "pow" children)))
+                "recur"
+                (fn [{:keys [op bindings]}]
+                  (list* (symbol op)
+                         (map (comp emit second) (seq bindings))))
+                "return"
+                (fn [{:keys [op bindings]}]
+                  (reduce (fn [m [s e]]
+                            (assoc m
+                              (keyword s)
+                              (emit e)))
+                          {}
+                          (seq bindings)))
+                "destructure"
+                (fn [{:keys [op symbols]}]
+                  {:keys (mapv emit symbols)})
+                "let"
+                (fn [{:keys [op bindings children]}]
+                  (list* (symbol op)
+                         (mapv emit (apply concat (.pairs bindings)))
+                         (map emit children)))
+                "loop"
+                (fn [{:keys [op init-bindings children]}]
+                  (list* (symbol op)
+                         (mapv emit (apply concat (.pairs init-bindings)))
+                         (map emit children)))
+                "var"
+                (fn [{:keys [name]}]
+                  (symbol name))
+                java.lang.Long
+                identity
+                java.lang.Double
+                identity
+                clojure.lang.PersistentVector
+                (fn [x]
+                  (mapv emit x))}
+               (fn [{:keys [op children] :as x}]
+                 (reset! user/v x)
+                 (emit-fn op children))
+               dmp/symbolic-expression-dispatcher))]
+      @emit))
   ([]
      (lisp-emitter {"sqrt" "Math/sqrt"
                     "pow" "Math/pow"
                     "log" "Math/log"
                     "copy-sign" "Math/copySign"})))
+
+
+
+
+
+

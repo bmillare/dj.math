@@ -115,7 +115,8 @@
                                                               :children (vec (list* f (map second r)))})))
                                                 (dp/alt id
                                                         (fn [x]
-                                                          (s {:variable x})))
+                                                          (s {:op "var"
+                                                              :name x})))
                                                 (dp/alt (dp/s lparen
                                                               expr
                                                               rparen)
@@ -132,7 +133,7 @@
 (defn symbolic-expression-dispatcher
   [x]
   (let [tx (type x)]
-    (if (= tx
-           :symbolic-expression)
-      (set (keys x))
-      tx)))
+       (if (= tx
+              :symbolic-expression)
+         (:op x)
+         tx)))

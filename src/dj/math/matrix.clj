@@ -489,7 +489,8 @@
   VectorVectorMatrix
   [m]
   (let [sym-names (mapv (fn [n]
-                          (dmp/s {:variable (dm/gensym (str "m" n))}))
+                          (dmp/s {:op "var"
+                                  :name (dm/gensym (str "m" n))}))
                         (range (count m)))
         ms (seq m)
         ;; if I want to remove redundant symbols this is where
@@ -499,11 +500,7 @@
         ;; important is that I make sure mvs also gets updated in that
         ;; ms also passes through.
         bindings (reduce (fn [ret [k v]]
-                           (if #_ (or (number? v)
-                                   (and (= (type v)
-                                           :symbolic-expression)
-                                        (:variable v)))
-                               (number? v)
+                           (if (number? v)
                              ret
                              (if-let [child-bindings (:bindings v)]
                                (dmb/join ret
@@ -519,11 +516,7 @@
                          (seq (dmb/zip->bindings sym-names
                                                  ms)))
         mvs (map (fn [s v]
-                   (if #_ (or (number? v)
-                           (and (= (type v)
-                                   :symbolic-expression)
-                                (:variable v)))
-                       (number? v)
+                   (if (number? v)
                      v
                      s))
                  sym-names
@@ -540,14 +533,11 @@
   clojure.lang.PersistentVector
   [vec']
   (let [sym-names (mapv (fn [n]
-                          (dmp/s {:variable (dm/gensym (str "v" n))}))
+                          (dmp/s {:op "var"
+                                  :name (dm/gensym (str "v" n))}))
                         (range (count vec')))
         bindings (reduce (fn [ret [k v]]
-                           (if #_ (or (number? v)
-                                   (and (= (type v)
-                                           :symbolic-expression)
-                                        (:variable v)))
-                               (number? v)
+                           (if (number? v)
                              ret
                              (if-let [child-bindings (:bindings v)]
                                (dmb/join ret
@@ -567,11 +557,7 @@
       (dmp/s {:op "let"
               :bindings bindings
               :children [(mapv (fn [s v]
-                                 (if #_ (or (number? v)
-                                         (and (= (type v)
-                                                 :symbolic-expression)
-                                              (:variable v)))
-                                     (number? v)
+                                 (if (number? v)
                                    v
                                    s))
                                sym-names
@@ -580,17 +566,14 @@
 (defmethod dm/auto-let
   :symbolic-expression
   [e]
-  (let [g (dmp/s {:variable (dm/gensym "g")})]
-    (case (set (keys e))
-      #{:op :children} (dmp/s {:op "let"
-                               :bindings (dmb/pairs->bindings [[g e]])
-                               :children [g]})
-      #{:op :bindings :children} e
-      #{:op :init-bindings :variable-map :children} (dmp/s {:op "let"
-                                                            :bindings (dmb/pairs->bindings [[g e]])
-                                                            :children [g]})
-      #{:variable} e
-      (throw (Exception. "Shouldn't get here")))))
+  (let [g (dmp/s {:op "var"
+                  :name (dm/gensym "g")})]
+    (case (:op e)
+      "let" e
+      "var" e
+      (dmp/s {:op "let"
+              :bindings (dmb/pairs->bindings [[g e]])
+              :children [g]}))))
 
 (defmethod dm/auto-let
   java.lang.Long
@@ -625,4 +608,5 @@ creates a jacobian template matrix
                  (let [e ((jacobian-map rsv) csv)]
                    (if (number? e)
                      e
-                     (dmp/s {:variable (id->Ji rsv csv)})))))))))
+                     (dmp/s {:op "var"
+                             :name (id->Ji rsv csv)})))))))))

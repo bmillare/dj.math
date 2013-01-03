@@ -7,7 +7,7 @@
 
 (def d nil)
 (defmulti d (fn [exp variable]
-              (dmp/symbolic-expression-dispatcher exp)))
+              (type exp)))
 
 (defmethod d
   java.lang.Long
@@ -28,8 +28,8 @@
 ;; use bindings. In the future, we can fix this.
 
 (def ^:dynamic symbolic-d (fn [x variable]
-                            (let [exp-var-name (:variable x)
-                                  var-name (:variable variable)]
+                            (let [exp-var-name (:name x)
+                                  var-name (:name variable)]
                               (if (= var-name exp-var-name)
                                 1
                                 0))))
@@ -37,8 +37,8 @@
 (defn recursive-symbolic-d
   [exp-map dep-map]
   (fn [x variable]
-    (let [exp-var-name (:variable x)
-          var-name (:variable variable)]
+    (let [exp-var-name (:name x)
+          var-name (:name variable)]
       (if (= var-name exp-var-name)
         1
         ;; if x depends on variable, return derivative of x
@@ -62,12 +62,10 @@ The returned fn already binds symbolic-d
                                                dep-map)]
       (d x variable))))
 
-(defmethod d
-  #{:variable}
-  [x variable]
-  (symbolic-d x variable))
-
 (defmulti d-op :op)
+
+(defmethod d-op "var" [x variable]
+  (symbolic-d x variable))
 
 (defmethod d-op "+" [{:keys [op children]} variable]
   (reduce (fn [r n]
@@ -156,6 +154,6 @@ The returned fn already binds symbolic-d
             :children [(d x variable)]})))
 
 (defmethod d
-  #{:op :children}
+  :symbolic-expression
   [exp variable]
   (d-op exp variable))

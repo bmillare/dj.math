@@ -9,103 +9,92 @@
   ([op-alias-map]
      (dj/var-let
       [emit (dp/->simple-multi-fn
-             {#{:op :children}
-              (fn [{:keys [op children]}]
-                (let [interpose-children (fn [sep]
-                                           (str "("
-                                                (apply str (interpose sep (map emit children)))
-                                                ")"))]
-                  (case op
-                    "+" (interpose-children "+")
-                    "-" (interpose-children "-")
-                    "*" (interpose-children "*")
-                    "/" (interpose-children "/")
-                    "==" (interpose-children "==")
-                    ">" (interpose-children ">")
-                    "<" (interpose-children "<")
-                    "!=" (interpose-children "!=")
-                    "float" (apply str "(float)" (map emit children))
-                    "double" (apply str "(double)" (map emit children))
-                    "if" (let [[c t f] children]
-                           (if (and (number? t)
-                                    (number? f)
-                                    (= (double t) (double f)))
-                             t
-                             (str "("(emit (first children)) ") ? "
-                                  (emit (second children)) " : "
-                                  (emit (nth children 2)))))
-                    (cond
-                     (and (= op "pow")
-                          (number? (second children))
-                          (= 2.0 (double (second children))))
-                     (let [v (emit (first children))]
-                       (str v "*" v))
-                                                                  
-                     :else (str (or (op-alias-map op)
-                                    op)
-                                (interpose-children ","))))))
-              #{:op :bindings}
+             {"recur"
               (fn [{:keys [op bindings]}]
-                (case op
-                  "recur" (str (apply str (for [[s e] (seq bindings)]
-                                            (str (emit s) " = " (emit e) ";\n")))
-                               "continue;\n")
-                  "return" (str (apply str (for [[s e] (seq bindings)]
-                                             (str (emit s) " = " (emit e) ";\n")))
-                                "break;\n")
-                  (throw (Exception. (str "op/bindings form not supported:" op)))))
-              #{:op :symbols}
+                (str (apply str (for [[s e] (seq bindings)]
+                                  (str (emit s) " = " (emit e) ";\n")))
+                     "continue;\n"))
+              "return"
+              (fn [{:keys [op bindings]}]
+                (str (apply str (for [[s e] (seq bindings)]
+                                  (str (emit s) " = " (emit e) ";\n")))
+                     "break;\n"))
+              "destructure"
               (fn [{:keys [op symbols]}]
-                (case op
-                  "destructure" (apply str (for [s symbols]
-                                             (str "float " (emit s) ";\n")))
-                  (throw (Exception. (str "op/symbols form not supported:" op)))))
-              #{:op :bindings :children}
+                (apply str (for [s symbols]
+                             (str "float " (emit s) ";\n"))))
+              "let"
               (fn [{:keys [op bindings children]}]
-                (case op
-                  "let" (str "{\n"
-                             (apply str (for [[s e] (seq bindings)]
-                                          ;; clean up this condition once we refactor how we dispatch
-                                          (if (let [ts (type s)]
-                                                (and (= ts
-                                                        :symbolic-expression)
-                                                     (= (set (keys))
-                                                        #{:op :symbols})))
-                                            (str (emit s) (emit e))
-                                            (str "const float " (emit s) " = " (emit e) ";\n"))))
-                             (apply str (map emit children))
-                             "}\n")
-                  (throw (Exception. (str "binding form not supported:" op)))))
-              #{:op :init-bindings :children}
+                (str "{\n"
+                     (apply str (for [[s e] (seq bindings)]
+                                  ;; clean up this condition once we refactor how we dispatch
+
+                                  ;; want to dispatch on pair
+                                  (if (let [ts (type s)]
+                                        (and (= ts
+                                                :symbolic-expression)
+                                             (= (set (keys s))
+                                                #{:op :symbols})))
+                                    (str (emit s) (emit e))
+                                    (str "const float " (emit s) " = " (emit e) ";\n"))))
+                     (apply str (map emit children))
+                     "}\n"))
+              "loop"
               (fn [{:keys [op init-bindings children]}]
-                (case op
-                  "loop" (str (apply str (for [[s e] (seq init-bindings)]
-                                           (str "float " (emit s) " = " (emit e) ";\n")))
-                              "for (;;) {\n"
-                              (apply str (map emit children))
-                              "}\n")
-                  (throw (Exception. (str "op/init-bindings/children form not supported:" op)))))
-              #{:variable}
-              (fn [{:keys [variable]}]
-                variable)
+                (str (apply str (for [[s e] (seq init-bindings)]
+                                  (str "float " (emit s) " = " (emit e) ";\n")))
+                     "for (;;) {\n"
+                     (apply str (map emit children))
+                     "}\n"))
+              "var"
+              (fn [{:keys [name]}]
+                name)
               dj.math.matrix.VectorVectorMatrix
               (fn [m]
                 (apply str (map emit (seq m))))
               clojure.lang.PersistentVector
               (fn [m]
-                (apply str (map emit m)))
+                (apply str "//" (interpose " " (map emit m))))
               java.lang.Long
               (fn [x]
-                (str (double x)))}
-             (fn [x]
-               (cond
-                (map? x) (str (reduce-kv (fn [ret k v]
-                                           (assoc ret
-                                             k
-                                             (emit v)))
-                                         {}
-                                         x))
-                :else x))
+                (str (double x)))
+              java.lang.Double
+              (fn [x]
+                (str x))}
+             (fn [{:keys [op children]}]
+               (let [interpose-children (fn [sep]
+                                          (str "("
+                                               (apply str (interpose sep (map emit children)))
+                                               ")"))]
+                 (case op
+                   "+" (interpose-children "+")
+                   "-" (interpose-children "-")
+                   "*" (interpose-children "*")
+                   "/" (interpose-children "/")
+                   "==" (interpose-children "==")
+                   ">" (interpose-children ">")
+                   "<" (interpose-children "<")
+                   "!=" (interpose-children "!=")
+                   "float" (apply str "(float)" (map emit children))
+                   "double" (apply str "(double)" (map emit children))
+                   "if" (let [[c t f] children]
+                          (if (and (number? t)
+                                   (number? f)
+                                   (= (double t) (double f)))
+                            t
+                            (str "("(emit (first children)) ") ? "
+                                 (emit (second children)) " : "
+                                 (emit (nth children 2)))))
+                   (cond
+                    (and (= op "pow")
+                         (number? (second children))
+                         (= 2.0 (double (second children))))
+                    (let [v (emit (first children))]
+                      (str v "*" v))
+                    
+                    :else (str (or (op-alias-map op)
+                                   op)
+                               (interpose-children ","))))))
              dmp/symbolic-expression-dispatcher)]
       @emit))
   ([]

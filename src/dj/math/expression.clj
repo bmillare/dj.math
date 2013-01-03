@@ -9,8 +9,8 @@
               (if (= tc :symbolic-expression)
                 (if (:children child)
                   (cs/union m (direct-dependents child))
-                  (if-let [vc (:variable child)]
-                    (conj m vc)
+                  (if (= (:op child) "var")
+                    (conj m (:name child))
                     m))
                 m)))
           #{}
