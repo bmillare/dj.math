@@ -165,6 +165,10 @@ map, and return bindings
           :init-bindings init-bindings
           :children [child]}))
 
+(defn vare [name]
+  (dmp/s {:op "var"
+          :name name}))
+
 (defmacro def-commutative-method
   "sugar for defining a commutative method"
   [name
