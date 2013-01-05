@@ -32,7 +32,7 @@
                 (fn [{:keys [op bindings]}]
                   (reduce (fn [m [s e]]
                             (assoc m
-                              (keyword s)
+                              (keyword (:name s))
                               (emit e)))
                           {}
                           (seq bindings)))
@@ -42,6 +42,12 @@
                 "let"
                 (fn [{:keys [op bindings children]}]
                   (list* (symbol op)
+                         ;; work around for 64kb limit
+                         #_ (vec (mapcat (fn [[s e]]
+                                        [(emit s)
+                                         `((fn []
+                                             ~(emit e)))])
+                                      (.pairs bindings)))
                          (mapv emit (apply concat (.pairs bindings)))
                          (map emit children)))
                 "loop"
@@ -60,7 +66,6 @@
                 (fn [x]
                   (mapv emit x))}
                (fn [{:keys [op children] :as x}]
-                 (reset! user/v x)
                  (emit-fn op children))
                dmp/symbolic-expression-dispatcher))]
       @emit))
@@ -68,6 +73,8 @@
      (lisp-emitter {"sqrt" "Math/sqrt"
                     "pow" "Math/pow"
                     "log" "Math/log"
+                    "ln" "Math/log"
+                    "exp" "Math/exp"
                     "copy-sign" "Math/copySign"})))
 
 

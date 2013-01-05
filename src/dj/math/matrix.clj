@@ -200,8 +200,10 @@
           :children [x y]}))
 
 (defmethod dm/- [:symbolic-expression :symbolic-expression] [x y]
-  (dmp/s {:op "-"
-          :children [x y]}))
+  (if (= x y)
+    0
+    (dmp/s {:op "-"
+           :children [x y]})))
 
 (defmethod dm/d [:symbolic-expression :symbolic-expression] [x y]
   (dmp/s {:op "/"
@@ -323,8 +325,13 @@
     (dm/- m)))
 
 (defmethod dm/copy-sign [:symbolic-expression :symbolic-expression] [m s]
-  (dmp/s {:op "copy-sign"
-          :children [m s]}))
+  (if (and (= (:op m)
+              "abs")
+           (= (first (:children m))
+              s))
+    s
+    (dmp/s {:op "copy-sign"
+            :children [m s]})))
 
 (defmethod dm/+ [java.lang.Double java.lang.Double] [x y]
   (+ x y))
@@ -379,12 +386,12 @@
             :children [x y]})))
 
 (dm/def-commutative-method dm/* [:symbolic-expression java.lang.Long] [x y]
-  (if (zero? y)
-    0
-    (if (= 1 y)
-      x
-      (dmp/s {:op "*"
-              :children [x y]}))))
+  (cond
+   (zero? y) 0
+   (= 1 y) x
+   (= -1 y) (dm/- x)
+   :else (dmp/s {:op "*"
+                 :children [x y]})))
 
 (defmethod dm/d [:symbolic-expression java.lang.Long] [x y]
   (dmp/s {:op "/"
@@ -397,8 +404,15 @@
             :children [x y]})))
 
 (defmethod dm/sqrt [:symbolic-expression] [x]
-  (dmp/s {:op "sqrt"
-          :children [x]}))
+  (if (and (= (:op x) "pow")
+           (or (= (second (:children x))
+                  2)
+               (= (second (:children x))
+                  2.0)))
+    (dmp/s {:op "abs"
+            :children [(first (:children x))]})
+    (dmp/s {:op "sqrt"
+            :children [x]})))
 
 (defmethod dm/pow [:symbolic-expression java.lang.Long] [x e]
   (if (zero? e)
@@ -432,12 +446,12 @@
             :children [x y]})))
 
 (dm/def-commutative-method dm/* [:symbolic-expression java.lang.Double] [x y]
-  (if (zero? y)
-    0
-    (if (= 1 y)
-      x
-      (dmp/s {:op "*"
-              :children [x y]}))))
+  (cond
+   (zero? y) 0
+   (= 1 y) x
+   (= -1 y) (dm/- x)
+   :else (dmp/s {:op "*"
+              :children [x y]})))
 
 (defmethod dm/d [:symbolic-expression java.lang.Double] [x y]
   (dmp/s {:op "/"

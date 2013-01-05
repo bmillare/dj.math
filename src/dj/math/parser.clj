@@ -17,7 +17,7 @@
                              (Double/parseDouble x)))
 	plus-minus (dp/t #"[+\-]")
         mult-div (dp/t #"[*/]")
-        equalities (dp/t #"==|[><]|\!=")
+        equalities (dp/t #"==|\!=|>=|<=|[><]")
         comma (dp/t #",")
 	lparen (dp/t #"\(")
 	rparen (dp/t #"\)")

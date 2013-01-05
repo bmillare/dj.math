@@ -93,38 +93,62 @@
                                 (first (seq x)))
             I-step (dmm/minor I
                               [idx idx])]
-        (dm/letm [;; if u is the zero vector, Q should just be the identity (BUG)
-                  u (dm/- x (dm/* alpha e))]
-          (dm/letm [v (dm/d u (dmm/vnorm u))]
-            (let [Q-step (dm/- I-step (dm/* 2 (dm/* v (dmm/t v))))
-                  ;; ideas for fixing
-                  ;; 1. do optimized substitutions
-                  ;; 2. matrix operated with a scalar is a place for reuse
-                  ;; 3. create new forms that do special things when emitted
-                  ;; 4. maybe a let form?
-                  ;; 5. precomputing values?
-                  ;; 6. at each qr-decomp-step evaluate expression?
+        (dm/letm [
+                  ;; if u is the zero vector, Q should just be the identity (BUG)
 
-                  ;; this is to improve accuracy
-                  Q-step-1A (dmm/assoc-minor (dm/* Q-step
-                                                   A)
-                                             [0 0]
-                                             (dm/* e
-                                                   alpha))
-                  A' (dmm/minor Q-step-1A
-                                [1 1])]
-              (dm/letm [A A'
-                        Q (dm/* Q (dmm/assoc-minor I
-                                                 [idx idx]
-                                                 (dmm/t Q-step)))
-                        R (dmm/assoc-minor R
-                                           [idx idx]
-                                           Q-step-1A)]
-                       (qr-decomp-step' A
-                                        I
-                                        I-size
-                                        Q
-                                        R)))))))))
+                  ;; for now let's try just compile time detection
+                  u (dm/- x (dm/* alpha e))]
+                 (if (zero? (dmm/vnorm u))
+                   (let [Q-step I-step
+                         Q-step-1A (dmm/assoc-minor (dm/* Q-step
+                                                          A)
+                                                    [0 0]
+                                                    (dm/* e
+                                                          alpha))
+                         A' (dmm/minor Q-step-1A
+                                       [1 1])]
+                     (dm/letm [A A'
+                               Q (dm/* Q (dmm/assoc-minor I
+                                                          [idx idx]
+                                                          (dmm/t Q-step)))
+                               R (dmm/assoc-minor R
+                                                  [idx idx]
+                                                  Q-step-1A)]
+                              (qr-decomp-step' A
+                                               I
+                                               I-size
+                                               Q
+                                               R)))
+                   (dm/letm [v (dm/d u (dmm/vnorm u))]
+                            (let [Q-step (dm/- I-step (dm/* 2 (dm/* v (dmm/t v))))
+                                  ;; ideas for fixing
+                                  ;; 1. do optimized substitutions
+                                  ;; 2. matrix operated with a scalar is a place for reuse
+                                  ;; 3. create new forms that do special things when emitted
+                                  ;; 4. maybe a let form?
+                                  ;; 5. precomputing values?
+                                  ;; 6. at each qr-decomp-step evaluate expression?
+
+                                  ;; this is to improve accuracy
+                                  Q-step-1A (dmm/assoc-minor (dm/* Q-step
+                                                                   A)
+                                                             [0 0]
+                                                             (dm/* e
+                                                                   alpha))
+                                  A' (dmm/minor Q-step-1A
+                                                [1 1])]
+                              (dm/letm [A A'
+                                        Q (dm/* Q (dmm/assoc-minor I
+                                                                   [idx idx]
+                                                                   (dmm/t Q-step)))
+                                        R (dmm/assoc-minor R
+                                                           [idx idx]
+                                                           Q-step-1A)]
+                                       (qr-decomp-step' A
+                                                        I
+                                                        I-size
+                                                        Q
+                                                        R))))))))))
 
 (defn qr-decomp' [A]
   (let [height (dmm/height A)
