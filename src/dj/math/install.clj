@@ -10,10 +10,15 @@
       "dj/view/cljs")
 (def e (dj.view/generator dj.view/emit))
 (def re (dj.view/generator dj.view/raw-emit))
+(dj.dependencies/resolve-project "gnuplot")
+(load "gnuplot")
+(def fe gnuplot/emit-static-plot)
 (def de (dj.view.cljs/generator app (dj.view.cljs/feed-out
                                      dj.view/emit)))
 (def dre (dj.view.cljs/generator app (dj.view.cljs/feed-out
                                       dj.view/raw-emit)))
+(def dfe (dj.view.cljs/generator app (dj.view.cljs/feed-out
+                                      dj.view/iframe-emit)))
 (def store (atom []))
 (def ! (dj.repl/map-logger store))
 
@@ -79,4 +84,4 @@
 (str ret)
 (load "dj/math/cemit")
 
-(e (dj.git/changed-projects))
+(de (dj.git/changed-projects))

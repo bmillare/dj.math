@@ -44,10 +44,10 @@
                   (list* (symbol op)
                          ;; work around for 64kb limit
                          #_ (vec (mapcat (fn [[s e]]
-                                        [(emit s)
-                                         `((fn []
-                                             ~(emit e)))])
-                                      (.pairs bindings)))
+                                           [(emit s)
+                                            `((fn []
+                                                ~(emit e)))])
+                                         (.pairs bindings)))
                          (mapv emit (apply concat (.pairs bindings)))
                          (map emit children)))
                 "loop"

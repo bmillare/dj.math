@@ -42,7 +42,7 @@
       (if (= var-name exp-var-name)
         1
         ;; if x depends on variable, return derivative of x
-        (if ((dep-map (user/ve exp-var-name)) var-name)
+        (if ((dep-map exp-var-name) var-name)
           (d (exp-map exp-var-name)
              variable)
           0)))))
@@ -149,7 +149,7 @@ The returned fn already binds symbolic-d
 (defmethod d-op "exp" [{:keys [op children]} variable]
   (let [x (first children)]
     (dm/* (dm/exp x)
-          (user/ve (d x variable)))))
+          (d x variable))))
 
 (defmethod d-op "float" [{:keys [op children]} variable]
   (let [x (first children)]

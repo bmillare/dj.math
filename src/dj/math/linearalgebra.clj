@@ -98,7 +98,9 @@
 
                   ;; for now let's try just compile time detection
                   u (dm/- x (dm/* alpha e))]
-                 (if (zero? (dmm/vnorm u))
+                 (if (let [n (dmm/vnorm u)]
+                       (and (number? n)
+                            (zero? n)))
                    (let [Q-step I-step
                          Q-step-1A (dmm/assoc-minor (dm/* Q-step
                                                           A)
