@@ -18,7 +18,8 @@
               (fn [{:keys [op bindings]}]
                 (str (apply str (for [[s e] (seq bindings)]
                                   (str (emit s) " = " (emit e) ";\n")))
-                     "break;\n"))
+                     #_ "break;\n" ;; break only works when inside a loop, need to account for this case
+                     ))
               "destructure"
               (fn [{:keys [op symbols]}]
                 (apply str (for [s symbols]

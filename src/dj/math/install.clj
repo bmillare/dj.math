@@ -19,8 +19,6 @@
                                       dj.view/raw-emit)))
 (def dfe (dj.view.cljs/generator app (dj.view.cljs/feed-out
                                       dj.view/iframe-emit)))
-(def store (atom []))
-(def ! (dj.repl/map-logger store))
 
 (dj.dependencies/resolve-project "dj.math")
 (dj.dependencies/resolve-project "dj.cuda")
@@ -30,9 +28,6 @@
       "dj/math/matrix"
       "dj/math/differentiation")
 
-(dre (:error (dj.io/capture-out-err (clojure.repl/pst))))
-(dre "asdf")
-
 (require '[datomic.api :as d])
 (dre (let [s (seq (d/q '[:find ?ret
                          :where
@@ -41,47 +36,8 @@
                        @store))]
        [s (count s)]))
 
-(reset! store [])
-
-(load "dj/math/linearalgebra")
-
-(dj.math.linearalgebra/test-run)
-
-(defn stop [_]
-  (throw (Exception. "stop")))
-
-(defn id? [obj id]
-  (= (:id (meta obj))
-     id))
-(defn ifstop [bool' obj]
-  (if bool'
-    (throw (Exception. "stop"))
-    obj))
-
-(defn ifprint [bool' obj]
-  (if bool'
-    (do (user/dre (pr-str obj))
-        obj)
-    obj))
-
-(defn ifdo [bool' obj]
-  (if bool'
-    (do (def user/ret obj)
-        obj)
-    obj))
-
-(defn run []
-  (load "dj/math"
-        "dj/math/linearalgebra")
-  (dj.math.linearalgebra/test-run))
-
-(defn add-meta [obj m]
-  (let [m' (meta obj)]
-    (with-meta obj (merge m' m))))
-
-(user/run)
-
-(str ret)
-(load "dj/math/cemit")
-
 (de (dj.git/changed-projects))
+(def v (atom []))
+
+(dj.repl/deftracer t (dj.repl/->trace-walker (dj.repl/->simple-trace-logger 'user/v)))
+

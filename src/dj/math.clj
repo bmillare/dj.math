@@ -33,6 +33,7 @@
 ;; auto-let, create bindings to expression, but pass through constants
 (defmulti auto-let type)
 
+;; A serious beast of a macro... I wish it could be simplified somehow
 (defmacro letm [bindings ret]
   (let [pairs (partition 2 bindings)
         cp (count pairs)
