@@ -26,7 +26,7 @@
                              (str "float " (emit s) ";\n"))))
               "let"
               (fn [{:keys [op bindings children]}]
-                (str "{\n"
+                (str #_ "{\n" ;; while technically most correct, problematic when wanting to export values
                      (apply str (for [[s e] (seq bindings)]
                                   ;; clean up this condition once we refactor how we dispatch
 
@@ -39,7 +39,7 @@
                                     (str (emit s) (emit e))
                                     (str "const float " (emit s) " = " (emit e) ";\n"))))
                      (apply str (map emit children))
-                     "}\n"))
+                     #_ "}\n"))
               "loop"
               (fn [{:keys [op init-bindings children]}]
                 (str (apply str (for [[s e] (seq init-bindings)]
