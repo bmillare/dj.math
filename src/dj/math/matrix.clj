@@ -325,13 +325,8 @@
     (dm/- m)))
 
 (defmethod dm/copy-sign [:symbolic-expression :symbolic-expression] [m s]
-  (if (and (= (:op m)
-              "abs")
-           (= (first (:children m))
-              s))
-    s
-    (dmp/s {:op "copy-sign"
-            :children [m s]})))
+  (dmp/s {:op "copy-sign"
+          :children [m s]}))
 
 (defmethod dm/+ [java.lang.Double java.lang.Double] [x y]
   (+ x y))
@@ -523,16 +518,22 @@
                                                      (-> v
                                                          :children
                                                          first)))
-                               (dmb/append ret
-                                           k
-                                           v))))
+                               (if (= (:op v)
+                                      "var")
+                                 ret
+                                 (dmb/append ret
+                                             k
+                                             v)))))
                          (dmb/pairs->bindings [])
                          (seq (dmb/zip->bindings sym-names
                                                  ms)))
         mvs (map (fn [s v]
                    (if (number? v)
                      v
-                     s))
+                     (if (= (:op v)
+                            "var")
+                       v
+                       s)))
                  sym-names
                  ms)]
     (if (empty? bindings)

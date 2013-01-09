@@ -26,7 +26,8 @@
 (load "dj/cuda/translator"
       "dj/math/expression"
       "dj/math/matrix"
-      "dj/math/differentiation")
+      "dj/math/differentiation"
+      "dj/math/linearalgebra")
 
 (require '[datomic.api :as d])
 (dre (let [s (seq (d/q '[:find ?ret
@@ -39,5 +40,6 @@
 (de (dj.git/changed-projects))
 (def v (atom []))
 
-(dj.repl/deftracer t (dj.repl/->trace-walker (dj.repl/->simple-trace-logger 'user/v)))
+(dj.repl/deftracer t (dj.repl/->trace-walker (dj.repl/->simple-trace-logger 'user/v)
+                                             2))
 
