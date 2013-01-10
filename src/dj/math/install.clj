@@ -40,6 +40,7 @@
 (de (dj.git/changed-projects))
 (def v (atom []))
 
-(dj.repl/deftracer t (dj.repl/->trace-walker (dj.repl/->simple-trace-logger 'user/v)
+(dj.repl/deftracer t (dj.repl/->trace-walker (dj.repl/->tuple-trace-logger 'user/v)
                                              2))
+
 

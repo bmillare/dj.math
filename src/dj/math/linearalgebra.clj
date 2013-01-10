@@ -138,6 +138,7 @@
                                                                       [0 0]
                                                                       (dm/* e
                                                                             alpha))
+                                           ;; note because this ignores a value, it creates unused variables LOW PRIORITY BUG
                                            A' (dmm/minor Q-step-1A
                                                          [1 1])]
                                        (dm/letm [A A'

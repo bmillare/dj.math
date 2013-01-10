@@ -69,7 +69,9 @@
                                                ")"))]
                  (case op
                    "+" (interpose-children "+")
-                   "-" (interpose-children "-")
+                   "-" (if (= (count children) 1)
+                         (str "-" (emit (first children)))
+                         (interpose-children "-"))
                    "*" (interpose-children "*")
                    "/" (interpose-children "/")
                    "==" (interpose-children "==")
