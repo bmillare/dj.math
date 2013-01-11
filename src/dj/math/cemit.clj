@@ -37,7 +37,8 @@
                                              (= (set (keys s))
                                                 #{:op :symbols})))
                                     (str (emit s) (emit e))
-                                    (str "const float " (emit s) " = " (emit e) ";\n"))))
+                                    #_ (str "const float " (emit s) " = " (emit e) ";\n")
+                                    (str "float " (emit s) " = " (emit e) ";\n"))))
                      (apply str (map emit children))
                      #_ "}\n"))
               "loop"
@@ -70,7 +71,7 @@
                  (case op
                    "+" (interpose-children "+")
                    "-" (if (= (count children) 1)
-                         (str "-" (emit (first children)))
+                         (str "(-" (emit (first children)) ")")
                          (interpose-children "-"))
                    "*" (interpose-children "*")
                    "/" (interpose-children "/")
@@ -78,7 +79,8 @@
                    ">" (interpose-children ">")
                    "<" (interpose-children "<")
                    "!=" (interpose-children "!=")
-                   "float" (apply str "(float)" (map emit children))
+                   "float" #_ (apply str "(float)" (map emit children))
+                   (apply str (map emit children))
                    "double" (apply str "(double)" (map emit children))
                    "if" (let [[c t f] children]
                           (if (and (number? t)
@@ -103,4 +105,7 @@
   ([]
      (c-emitter {"sqrt" "sqrtf"
                  "pow" "powf"
-                 "copy-sign" "copysignf"})))
+                 "copy-sign" "copysignf"
+                 "ln" "logf"
+                 "exp" "expf"
+                 "abs" "fabs"})))

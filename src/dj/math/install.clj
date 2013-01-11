@@ -61,11 +61,12 @@
 (def v (atom []))
 @v
 
-(let [settings {:num-nodes 1
+(let [_ (reset! dj.cuda/trace-store [])
+      settings {:num-nodes 1
                 :dt 1.0
-                :record-dt 40.0
-                :end-time 4000.0
-                :model-file (dj.io/file "dj/cuda/models/stiff.model")
+                :record-dt 1.0
+                :end-time 10.0
+                :model-file (dj.io/file "dj/cuda/models/mitomodel.model")
 
                 ;; cuda specific
                 :kernel-name "mitomodel"
@@ -95,9 +96,10 @@
           (first r))
       (-> r
           dj.cuda/compile-run
-          dj.cuda/plot-format
-          first)]
-  (let [
+          dj.cuda/plot-format)]
+  (def result r))
+
+(let [
         r (select-keys r ["x" "z"])
         r (reduce (fn [m k]
                     (-> m
@@ -115,5 +117,32 @@
         r (dj.plot/image->png-binary r)]
     (dhe {:tag :img
           :attrs {:src (dj.view/inline-binary-url r "image/png")}}))
-  
-  )
+
+(de @dj.cuda/trace-store)
+
+(let [r (-> (d/q
+             '[:find ?result
+               :in $ ?id
+               :where
+               [?id :result ?result]]
+             @dj.cuda/trace-store
+             99)
+            vec
+            first
+            first
+            )]
+  (dj.io/poop (dj.io/file "/home/bmillare/out.cu")
+              r))
+
+(let [r (-> (d/q
+             '[:find ?result
+               :in $ ?id
+               :where
+               [?id :result ?result]]
+             @dj.cuda/trace-store
+             95)
+            vec
+            first
+            first
+            :err)]
+  (dre r))
