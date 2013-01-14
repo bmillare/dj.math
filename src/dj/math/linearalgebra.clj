@@ -122,7 +122,10 @@
                                                Q
                                                R)))
                    (dm/letm [normu (dmm/vnorm u)]
-                            (dm/letm [v (dm/d u normu)]
+                            (dm/letm [v (dm/* u (dm/? (dmp/s {:op "==" ;; this is an attempt to fix the divide by zero problem
+                                                              :children [normu 0.0]})
+                                                      0.0
+                                                      (dm/d 1 normu)))]
                                      (let [Q-step (dm/- I-step (dm/* 2 (dm/* v (dmm/t v))))
                                            ;; ideas for fixing
                                            ;; 1. do optimized substitutions

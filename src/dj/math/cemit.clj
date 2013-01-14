@@ -37,8 +37,8 @@
                                              (= (set (keys s))
                                                 #{:op :symbols})))
                                     (str (emit s) (emit e))
-                                    #_ (str "const float " (emit s) " = " (emit e) ";\n")
-                                    (str "float " (emit s) " = " (emit e) ";\n"))))
+                                    (str "const float " (emit s) " = " (emit e) ";\n")
+                                    #_ (str "float " (emit s) " = " (emit e) ";\n"))))
                      (apply str (map emit children))
                      #_ "}\n"))
               "loop"
