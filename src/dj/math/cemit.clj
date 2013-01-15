@@ -5,6 +5,16 @@
             [dj.math.bindings :as dmb]
             [dj.math.matrix :as dmm]))
 
+(defn inverse-sqrt? [children]
+  (and (= (count children)
+          2)
+       (number? (first children))
+       (= 1 (long (first children)))
+       (= (type (second children))
+          :symbolic-expression)
+       (= (:op (second children))
+          "sqrt")))
+
 (defn c-emitter
   ([op-alias-map]
      (dj/var-let
@@ -74,14 +84,23 @@
                          (str "(-" (emit (first children)) ")")
                          (interpose-children "-"))
                    "*" (interpose-children "*")
-                   "/" (interpose-children "/")
+                   "/" (if (inverse-sqrt? children)
+                         (emit (dmp/s {:op "rsqrt"
+                                       :children (:children (second children))}))
+                         (interpose-children "/"))
                    "==" (interpose-children "==")
                    ">" (interpose-children ">")
                    "<" (interpose-children "<")
                    "!=" (interpose-children "!=")
+                   "or" (interpose-children "||")
+                   "and" (interpose-children "&&")
                    "float" #_ (apply str "(float)" (map emit children))
                    (apply str (map emit children))
                    "double" (apply str "(double)" (map emit children))
+                   "long" (if (= (type (first children))
+                                 java.lang.Long)
+                            (str (first children))
+                            (apply str "(long)" (map emit children)))
                    "if" (let [[c t f] children]
                           (if (and (number? t)
                                    (number? f)
@@ -108,4 +127,5 @@
                  "copy-sign" "copysignf"
                  "ln" "logf"
                  "exp" "expf"
-                 "abs" "fabs"})))
+                 "abs" "fabs"
+                 "rsqrt" "rsqrtf"})))

@@ -18,13 +18,18 @@
 	plus-minus (dp/t #"[+\-]")
         mult-div (dp/t #"[*/]")
         equalities (dp/t #"==|\!=|>=|<=|[><]")
+        logicals (dp/t #"\|\||&&")
         comma (dp/t #",")
 	lparen (dp/t #"\(")
 	rparen (dp/t #"\)")
-        cast (dp/t #"double|float")
+        cast (dp/t #"double|float|long")
 	infix-node (fn pm [[f r]]
                      (if r
-                       (s {:op (first (first r))
+                       (s {:op (let [op (first (first r))]
+                                 (case op
+                                   "||" "or"
+                                   "&&" "and"
+                                   op))
                            :children (vec (list* f (map second r)))})
                        f))
         infix-couple (fn [c nc]
@@ -70,11 +75,15 @@
                                              (dp/* (dp/s equalities
                                                          plus-expr)))
                                        infix-node)
-                 cond-expr (dp/alt (dp/s equality-expr
+                 logicals-expr (dp/alt (dp/s equality-expr
+                                             (dp/* (dp/s logicals
+                                                         equality-expr)))
+                                       infix-node)
+                 cond-expr (dp/alt (dp/s logicals-expr
                                          (dp/? (dp/s (wrap-ws (dp/t #"\?"))
-                                                     equality-expr
+                                                     logicals-expr
                                                      (wrap-ws (dp/t #":"))
-                                                     equality-expr)))
+                                                     logicals-expr)))
                                    (fn [[c r]]
                                      (if r
                                        (let [[_ t _ f] r]
@@ -93,10 +102,10 @@
                                                               ws
                                                               rparen
                                                               ws
-                                                              expr)
-                                                        (fn [[_ _ id _ _ _ e]]
+                                                              atom)
+                                                        (fn [[_ _ id _ _ _ a]]
                                                           (s {:op id
-                                                              :children [e]})))
+                                                              :children [a]})))
                                                 (dp/alt (dp/s id
                                                               ws
                                                               lparen
