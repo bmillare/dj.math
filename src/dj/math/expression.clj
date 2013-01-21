@@ -74,13 +74,17 @@ variables -> symbols that depend on variables
   "
 exp: any expression, ie. a number, var, or operator
 exp-map: hashmap from var names -> expressions
+
+returns expression with all nested expressions inlined
 "
   [exp exp-map]
   ((fn recur-inline-exp [exp]
      (case (type exp)
        :symbolic-expression (let [{:keys [op children name]} exp]
                               (case op
-                                "var" (recur-inline-exp (exp-map name))
+                                "var" (if-let [e (exp-map name)]
+                                        (recur-inline-exp e)
+                                        exp)
                                 (assoc exp
                                   :children (mapv recur-inline-exp children))))
        (if (number? exp)
