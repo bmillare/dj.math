@@ -22,7 +22,7 @@
 
 (defn has-dependents
   "
-:expression-map
+:var-uses-map
 symbols ('variable' names) -> sets of symbol names the expression uses
 
 :variables
@@ -31,11 +31,11 @@ list of variables to check if an symbol depends on
 returns map
 symbols -> variables (passed as an arg) that the symbols depends on
 "
-  [expression-map variables]
+  [var-uses-map variables]
   (let [vs (set variables)]
     (dj/var-let [rdependents (memoize
                               (fn [s]
-                                (let [ds (expression-map s)
+                                (let [ds (var-uses-map s)
                                       ds-vs (cs/difference ds vs)]
                                   (if (empty? ds-vs)
                                     (cs/intersection vs ds)
@@ -49,7 +49,7 @@ symbols -> variables (passed as an arg) that the symbols depends on
                             s
                             (rdependents s)))
                         {}
-                        (keys expression-map)))))
+                        (keys var-uses-map)))))
 
 (defn reverse-dependencies
   "
@@ -69,6 +69,25 @@ variables -> symbols that depend on variables
                        ds))
              {}
              dmap))
+
+(defn recursive-dependents-map
+  "
+returns map
+symbols -> variables (passed as an arg) that the symbols depends on
+"
+  [exp-map variables]
+  (-> exp-map
+      (dj/update-vals direct-dependents)
+      (has-dependents variables)))
+
+(defn unbound-dependents-map
+  "
+convenience fn
+
+returns map
+symbols -> empty sets
+" [variables]
+  (zipmap variables (repeat #{})))
 
 (defn inline-expression
   "

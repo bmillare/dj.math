@@ -1,5 +1,6 @@
 (ns dj.math.differentiation
-  (:require [dj.math :as dm]
+  (:require [dj]
+            [dj.math :as dm]
             [dj.math.parser :as dmp]
             [dj.math.expression :as dme]))
 
@@ -37,6 +38,7 @@
 (defn recursive-symbolic-d
   [exp-map dep-map]
   (fn [x variable]
+    (user/t [x variable])
     (let [exp-var-name (:name x)
           var-name (:name variable)]
       (if (= var-name exp-var-name)
@@ -160,3 +162,19 @@ The returned fn already binds symbolic-d
   :symbolic-expression
   [exp variable]
   (d-op exp variable))
+
+(defn jacobian-map
+  "
+
+takes the derivative of all expressions in exp-map relative to
+bindings using diff-fn
+"
+  [exp-map diff-fn]
+  (dj/update-vals exp-map
+                  (fn [e]
+                    (reduce (fn [m sv]
+                              (assoc m
+                                sv
+                                (diff-fn e (dm/vare sv))))
+                            {}
+                            (keys exp-map)))))
