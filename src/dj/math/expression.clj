@@ -70,3 +70,20 @@ variables -> symbols that depend on variables
              {}
              dmap))
 
+(defn inline-expression
+  "
+exp: any expression, ie. a number, var, or operator
+exp-map: hashmap from var names -> expressions
+"
+  [exp exp-map]
+  ((fn recur-inline-exp [exp]
+     (case (type exp)
+       :symbolic-expression (let [{:keys [op children name]} exp]
+                              (case op
+                                "var" (recur-inline-exp (exp-map name))
+                                (assoc exp
+                                  :children (mapv recur-inline-exp children))))
+       (if (number? exp)
+         exp
+         (throw (Exception. "expression type not recognized")))))
+   exp))
