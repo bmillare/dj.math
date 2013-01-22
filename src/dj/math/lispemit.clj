@@ -60,6 +60,8 @@
                   (symbol name))
                 java.lang.Long
                 identity
+                java.lang.Float
+                identity
                 java.lang.Double
                 identity
                 clojure.lang.PersistentVector

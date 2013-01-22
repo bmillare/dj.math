@@ -38,7 +38,6 @@
 (defn recursive-symbolic-d
   [exp-map dep-map]
   (fn [x variable]
-    (user/t [x variable])
     (let [exp-var-name (:name x)
           var-name (:name variable)]
       (if (= var-name exp-var-name)
