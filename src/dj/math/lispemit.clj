@@ -64,6 +64,8 @@
                 identity
                 java.lang.Double
                 identity
+                clojure.lang.Ratio
+                identity
                 clojure.lang.PersistentVector
                 (fn [x]
                   (mapv emit x))}

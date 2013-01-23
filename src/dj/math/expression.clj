@@ -1,5 +1,6 @@
 (ns dj.math.expression
-  (:require [dj.math.parser :as dmp]
+  (:require [dj.math :as dm]
+            [dj.math.parser :as dmp]
             [clojure.set :as cs]
             [dj]))
 
@@ -110,3 +111,76 @@ returns expression with all nested expressions inlined
          exp
          (throw (Exception. "expression type not recognized")))))
    exp))
+
+(letfn [ ;;e is guaranteed to be either a normalized ratio
+        (split-ratio-expression [state e]
+          (case (type e)
+            :symbolic-expression (let [{:keys [op children name]} e]
+                                   (case op
+                                     "/" (let [[child-n child-d] children]
+                                           (-> state
+                                               (update-in [:numerator]
+                                                          conj
+                                                          child-n)
+                                               (update-in [:denominator]
+                                                          conj
+                                                          child-d)))
+                                     (update-in state
+                                                [:numerator]
+                                                conj
+                                                e))),
+            (update-in state
+                       [:numerator]
+                       conj
+                       e)))
+        (swap-ratio [state]
+          {:numerator (:denominator state)
+           :denominator (:numerator state)})
+        (multiply-expression [es]
+          (case (count es)
+            1 (first es)
+            (dmp/s {:op "*"
+                    :children (reduce (fn [v e]
+                                        (case (type e)
+                                          :symbolic-expression (case (:op e)
+                                                                 "*" (into v (:children e))
+                                                                 (conj v e))
+                                          (conj v e)))
+                                      []
+                                      es)})))]
+  (defn normalize-ratio
+    "
+
+A normalized ratio is a division put into the form in prefix notation
+
+ (/ (* numerator...) (* denominator...))
+
+ and (* numerator...) and (* denominator) reduce to just numerator or
+ denominator if singular
+
+"
+    [e]
+    (case (type e)
+      :symbolic-expression (let [{:keys [op children name]} e]
+                             (case op
+                               "/" (case (count children)
+                                     0 (throw (Exception. "empty division"))
+                                     1 (normalize-ratio (first children))
+                                     (let [numerator (normalize-ratio (first children))
+                                           denominator (map normalize-ratio (rest children))]
+                                       (-> {:numerator []
+                                            :denominator []}
+                                           (as-> state
+                                                 (reduce split-ratio-expression
+                                                         state
+                                                         denominator))
+                                           swap-ratio
+                                           (split-ratio-expression numerator)
+                                           (as-> state
+                                                 (dm/d (multiply-expression (:numerator state))
+                                                       (multiply-expression (:denominator state))))))),
+                               "var" e,
+                               (assoc e
+                                 :children
+                                 (mapv normalize-ratio children))))
+      e)))
