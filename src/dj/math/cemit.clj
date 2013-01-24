@@ -106,9 +106,9 @@
                                    (number? f)
                                    (= (double t) (double f)))
                             t
-                            (str "("(emit (first children)) ") ? "
+                            (str "(("(emit (first children)) ") ? "
                                  (emit (second children)) " : "
-                                 (emit (nth children 2)))))
+                                 (emit (nth children 2)) ")")))
                    (cond
                     (and (= op "pow")
                          (number? (second children))

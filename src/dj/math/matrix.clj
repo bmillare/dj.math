@@ -474,6 +474,10 @@
   (dmp/s {:op "pow"
           :children [x e]}))
 
+(defmethod dm/pow [:symbolic-expression :symbolic-expression] [x e]
+  (dmp/s {:op "pow"
+          :children [x e]}))
+
 (defmethod dm/ln [java.lang.Long] [x]
   (Math/log (double x)))
 

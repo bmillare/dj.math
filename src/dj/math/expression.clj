@@ -137,21 +137,24 @@ evalutes expression as much as possible by calling math fn
                                                                           (case (type e)
                                                                             :symbolic-expression :symbolic
                                                                             :constant))
-                                                                        c)]
-                                                          (f (reduce f constant)
-                                                             (reduce f symbolic))))]
+                                                                        c)
+                                                              all (concat constant symbolic)]
+                                                          (if (dj.math/one? (count all))
+                                                            (first all)
+                                                            (reduce f all))))]
                              (case (:op e)
                                "*" (commutative-simplify dm/*)
                                "+" (commutative-simplify dm/+)
                                "-" (if (= 1 (count c))
                                      (dm/- (first c))
-                                     (reduce dm/* c))
-                               "d" (reduce dm/d c)
+                                     (reduce dm/- c))
+                               "/" (dm/d (first c) (second c))
                                "sqrt" (dm/sqrt (first c))
                                "pow" (apply dm/pow c)
                                "copy-sign" (apply dm/pow c)
                                "ln" (dm/ln (first c))
-                               "exp" (dm/ln (first c))
+                               "log" (dm/ln (first c))
+                               "exp" (dm/exp (first c))
                                e)))
     e))
 
