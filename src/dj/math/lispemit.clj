@@ -17,8 +17,8 @@
                                                op))
                                    (map emit children)))]
               (dp/->simple-multi-fn
-               {"pow"
-                (fn [{:keys [op children]}]
+               {#_ "pow"
+                #_ (fn [{:keys [op children]}]
                   (if (and (number? (second children))
                            (= 2.0 (double (second children))))
                     (let [v (emit (first children))]

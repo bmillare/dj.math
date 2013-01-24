@@ -389,8 +389,10 @@
                  :children [x y]})))
 
 (defmethod dm/d [:symbolic-expression java.lang.Long] [x y]
-  (dmp/s {:op "/"
-          :children [x y]}))
+  (if (dm/one? y)
+    x
+    (dmp/s {:op "/"
+            :children [x y]})))
 
 (defmethod dm/d [java.lang.Long :symbolic-expression] [x y]
   (if (zero? x)
@@ -449,8 +451,10 @@
               :children [x y]})))
 
 (defmethod dm/d [:symbolic-expression java.lang.Double] [x y]
-  (dmp/s {:op "/"
-          :children [x y]}))
+  (if (dm/one? y)
+    x
+    (dmp/s {:op "/"
+            :children [x y]})))
 
 (defmethod dm/d [java.lang.Double :symbolic-expression] [x y]
   (if (zero? x)

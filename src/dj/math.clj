@@ -193,3 +193,12 @@ map, and return bindings
        ~@body)
      (defmethod ~name ~(vec (reverse dispatch-value)) ~args
        ~@body)))
+
+(defn one?
+  "
+returns true if x is 1, safe on all types
+"
+  [x]
+  (if (number? x)
+    (= (double x) 1.0)
+    nil))

@@ -1,6 +1,7 @@
 (ns dj.math.expression
   (:require [dj.math :as dm]
             [dj.math.parser :as dmp]
+            [clojure.core.logic :as ccl]
             [clojure.set :as cs]
             [dj]))
 
@@ -112,7 +113,49 @@ returns expression with all nested expressions inlined
          (throw (Exception. "expression type not recognized")))))
    exp))
 
-(letfn [ ;;e is guaranteed to be either a normalized ratio
+(defn arraymap->symbolic-expression [m]
+  (if (number? m)
+    m
+    (dmp/s (if-let [c (:children m)]
+             (assoc m
+               :children
+               (mapv arraymap->symbolic-expression c))
+             m))))
+
+(defn reduce-constants
+  "
+evalutes expression as much as possible by calling math fn
+"
+  [e]
+  (case (type e)
+    :symbolic-expression (if (:name e)
+                           e
+                           (let [c (map reduce-constants (:children e))
+                                 commutative-simplify (fn [f]
+                                                        (let [{:keys [symbolic constant]}
+                                                              (group-by (fn [e]
+                                                                          (case (type e)
+                                                                            :symbolic-expression :symbolic
+                                                                            :constant))
+                                                                        c)]
+                                                          (f (reduce f constant)
+                                                             (reduce f symbolic))))]
+                             (case (:op e)
+                               "*" (commutative-simplify dm/*)
+                               "+" (commutative-simplify dm/+)
+                               "-" (if (= 1 (count c))
+                                     (dm/- (first c))
+                                     (reduce dm/* c))
+                               "d" (reduce dm/d c)
+                               "sqrt" (dm/sqrt (first c))
+                               "pow" (apply dm/pow c)
+                               "copy-sign" (apply dm/pow c)
+                               "ln" (dm/ln (first c))
+                               "exp" (dm/ln (first c))
+                               e)))
+    e))
+
+(letfn [ ;;e is guaranteed to be a normalized ratio if possible
         (split-ratio-expression [state e]
           (case (type e)
             :symbolic-expression (let [{:keys [op children name]} e]
@@ -136,18 +179,111 @@ returns expression with all nested expressions inlined
         (swap-ratio [state]
           {:numerator (:denominator state)
            :denominator (:numerator state)})
+        (flatten-* [es]
+          (reduce (fn [v e]
+                    (case (type e)
+                      :symbolic-expression (case (:op e)
+                                             "*" (into v (:children e))
+                                             (conj v e))
+                      (conj v e)))
+                  []
+                  es))
         (multiply-expression [es]
           (case (count es)
             1 (first es)
             (dmp/s {:op "*"
-                    :children (reduce (fn [v e]
-                                        (case (type e)
-                                          :symbolic-expression (case (:op e)
-                                                                 "*" (into v (:children e))
-                                                                 (conj v e))
-                                          (conj v e)))
-                                      []
-                                      es)})))]
+                    :children es})))
+        (callo [f n1 d1 n2 d2]
+          (ccl/fresh [ln1 ld1 ln2 ld2]
+                     (ccl/== ln1 n1)
+                     (ccl/== ld1 d1)
+                     (ccl/== ln2 n2)
+                     (ccl/== ld2 d2)
+                     (f ln1 ld1 ln2 ld2)))
+        (copysign [number magnitude sign]
+          (ccl/conda
+           [(ccl/== number {:op "-" :children [magnitude]})
+            (ccl/== sign -1)]
+           [(ccl/== number magnitude)
+            (ccl/== sign 1)]))
+        (simplifyo [n1 d1 n2 d2]
+          (ccl/conda
+           [(ccl/== n1 {:op "-" :children [d1]})
+            (ccl/== n2 -1)
+            (ccl/== d2 1)]
+           [(ccl/== {:op "-" :children [n1]} d1)
+            (ccl/== n2 -1)
+            (ccl/== d2 1)]
+           [(ccl/fresh [exponent magnitude sign]
+                       (copysign d1 magnitude sign)
+                       (ccl/== {:op "pow" :children [magnitude exponent]} n1)
+                       (ccl/project [exponent magnitude]
+                                    (ccl/== n2 (dj.math/pow (dj.math.parser/s magnitude)
+                                                            (dec exponent))))
+                       (ccl/== d2 sign))]
+           [(ccl/fresh [exponent magnitude sign]
+                       (copysign n1 magnitude sign)
+                       (ccl/== {:op "pow" :children [magnitude exponent]} d1)
+                       (ccl/project [exponent magnitude]
+                                    (ccl/== d2 (dj.math/pow (dj.math.parser/s magnitude)
+                                                            (dec exponent))))
+                       (ccl/== n2 sign))]
+           [(ccl/fresh [nv dv n-exponent d-exponent]
+                       (ccl/== {:op "pow" :children [nv n-exponent]} n1)
+                       (ccl/== {:op "pow" :children [dv d-exponent]} d1)
+                       (ccl/project [nv n-exponent d-exponent]
+                                    (let [nv (dj.math.parser/s nv)
+                                          diff (- n-exponent
+                                                  d-exponent)]
+                                      (if (pos? diff)
+                                        (ccl/all
+                                         (ccl/== n2 (dj.math/pow nv diff))
+                                         (ccl/== d2 1))
+                                        (ccl/all
+                                         (ccl/== n2 1)
+                                         (ccl/== d2 (dj.math/pow nv (- diff))))))))]))
+        (simplify [n d]
+          (if (= n d)
+            [1 1]
+            (-> (ccl/run 1 [q]
+                         (ccl/fresh [qn qd]
+                                    (ccl/== q [qn qd])
+                                    (callo simplifyo n d qn qd)))
+                first)))
+        (cancel [state]
+          (let [{:keys [numerator denominator]} state
+                n' (flatten-* numerator)
+                d' (flatten-* denominator)]
+            (loop [n n'
+                   n-idx 0
+                   d d'
+                   d-idx 0]
+              (if (< n-idx (count n))
+                (if (< d-idx (count d))
+                  (let [ne (n n-idx)]
+                    (case (type ne)
+                      :symbolic-expression
+                      (let [de (d d-idx)]
+                        (case (type de)
+                          :symbolic-expression
+                          (if-let [s (simplify ne de)]
+                            (let [[ne' de'] s]
+                              (recur (assoc n
+                                       n-idx
+                                       (arraymap->symbolic-expression ne')) (inc n-idx)
+                                       (assoc d
+                                         d-idx
+                                         (arraymap->symbolic-expression de')) 0))
+                            (recur n n-idx
+                                   d (inc d-idx)))
+                          (recur n n-idx
+                                 d (inc d-idx))))
+                      (recur n (inc n-idx)
+                             d 0)))
+                  (recur n (inc n-idx)
+                         d 0))
+                (dj.math/d (reduce dj.math/* n)
+                           (reduce dj.math/* d))))))]
   (defn normalize-ratio
     "
 
@@ -160,27 +296,26 @@ A normalized ratio is a division put into the form in prefix notation
 
 "
     [e]
-    (case (type e)
-      :symbolic-expression (let [{:keys [op children name]} e]
-                             (case op
-                               "/" (case (count children)
-                                     0 (throw (Exception. "empty division"))
-                                     1 (normalize-ratio (first children))
-                                     (let [numerator (normalize-ratio (first children))
-                                           denominator (map normalize-ratio (rest children))]
-                                       (-> {:numerator []
-                                            :denominator []}
-                                           (as-> state
-                                                 (reduce split-ratio-expression
-                                                         state
-                                                         denominator))
-                                           swap-ratio
-                                           (split-ratio-expression numerator)
-                                           (as-> state
-                                                 (dm/d (multiply-expression (:numerator state))
-                                                       (multiply-expression (:denominator state))))))),
-                               "var" e,
-                               (assoc e
-                                 :children
-                                 (mapv normalize-ratio children))))
-      e)))
+    (-> (case (type e)
+          :symbolic-expression (let [{:keys [op children name]} e]
+                                 (case op
+                                   "/" (case (count children)
+                                         0 (throw (Exception. "empty division"))
+                                         1 (normalize-ratio (first children))
+                                         (let [numerator (normalize-ratio (first children))
+                                               denominator (map normalize-ratio (rest children))]
+                                           (-> {:numerator []
+                                                :denominator []}
+                                               (as-> state
+                                                     (reduce split-ratio-expression
+                                                             state
+                                                             denominator))
+                                               swap-ratio
+                                               (split-ratio-expression numerator)
+                                               cancel))),
+                                   "var" e,
+                                   (assoc e
+                                     :children
+                                     (mapv normalize-ratio children))))
+          e)
+        reduce-constants)))
