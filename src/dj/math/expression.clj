@@ -1,6 +1,9 @@
 (ns dj.math.expression
   (:require [dj.math :as dm]
             [dj.math.parser :as dmp]
+            [dj.peg :as peg]
+            [dj.math.maxima :as dmm]
+            [dj.compose :as dc]
             [clojure.core.logic :as ccl]
             [clojure.set :as cs]
             [dj]))
@@ -322,3 +325,200 @@ A normalized ratio is a division put into the form in prefix notation
                                      (mapv normalize-ratio children))))
           e)
         reduce-constants)))
+
+(defn exponent-names [expr]
+  ((fn walk [ret e]
+     (if (= (type e)
+            :symbolic-expression)
+       (case (:op e)
+         "pow" (let [exponent (-> e
+                                  :children
+                                  second)]
+                 (if (= (type exponent)
+                        :symbolic-expression)
+                   (conj ret
+                         (:name exponent))
+                   ret))
+         (if (empty? (:children e))
+           ret
+           (reduce walk
+                   ret
+                   (:children e))))
+       ret))
+   #{}
+   expr))
+
+(defn pow-e->exp [e]
+  (if (= (type e)
+         :symbolic-expression)
+    (case (:op e)
+      "pow" (let [[base exponent] (:children e)]
+              (if (= (type base)
+                     :symbolic-expression)
+                (if (= (:name base)
+                       "%e")
+                  (dmp/s {:op "exp"
+                          :children [exponent]})
+                  (assoc e
+                    :children (mapv pow-e->exp (:children e))))
+                e))
+      "var" e
+      (assoc e
+        :children (mapv pow-e->exp (:children e))))
+    e))
+
+(defn substitute-constants [expr exceptions end-cont]
+  (letfn [(wrap-end [e _ m]
+            (end-cont e m))
+          (convert [e n m next-cont]
+                   (if (= (type e)
+                          :symbolic-expression)
+                     (case (:op e)
+                       "var" (peg/bounce next-cont
+                                         e
+                                         n
+                                         m)
+                       (peg/bounce walk
+                                   (:children e)
+                                   []
+                                   n
+                                   m
+                                   (fn [new-children n' m']
+                                     (peg/bounce next-cont
+                                                 (assoc e
+                                                   :children new-children)
+                                                 n'
+                                                 m'))))
+                     (if (exceptions e)
+                       (peg/bounce next-cont
+                                   e
+                                   n
+                                   m)
+                       (if (== e 1.0)
+                         (peg/bounce next-cont
+                                     (long 1)
+                                     n
+                                     m)
+                         (let [vname (str "x" n)
+                               v (dm/vare vname)
+                               n' (inc n)]
+                           (peg/bounce next-cont
+                                       v
+                                       n'
+                                       (assoc m
+                                         vname e)))))))
+          (walk [old-children
+                 new-children
+                 n
+                 m
+                 end-walk-cont]
+            (if (empty? old-children)
+              (peg/bounce end-walk-cont
+                          new-children
+                          n
+                          m)
+              (let [c (first old-children)]
+                (peg/bounce convert
+                            c
+                            n
+                            m
+                            (fn [nc
+                                 n'
+                                 m']
+                              (peg/bounce walk
+                                          (next old-children)
+                                          (conj new-children nc)
+                                          n'
+                                          m'
+                                          end-walk-cont))))))]
+    (trampoline convert
+                expr
+                0
+                {}
+                wrap-end)))
+
+(def base-maxima
+  {:exp-names (dc/wrap-fnr exponent-names
+                           [:expr])
+   :maxima-e (dc/wrap-fnr dmm/emit
+                          [:expr])
+   :declare-nonintegers (dc/fnr [exp-names]
+                                (apply str (for [n exp-names]
+                                             (str "declare(" n ",noninteger)$"))))
+   :maxima-simp (dc/fnr [maxima-e]
+                        (-> (str dmm/default-settings maxima-e ";")
+                            dmm/call-maxima*
+                            :out
+                            dmm/parse
+                            :result
+                            pow-e->exp))})
+
+(def maxima-simplify
+  (dc/->let-fn base-maxima
+               :maxima-simp
+               [:expr]))
+
+(def linearize-singularity-fns
+  {:singularity-output (dc/fnr [declare-nonintegers maxima-e vname singularity-input]
+                               (-> (str dmm/default-settings declare-nonintegers "limit(" maxima-e "," vname "," singularity-input ");")
+                                   dmm/call-maxima*
+                                   :out
+                                   dmm/parse
+                                   :result
+                                   pow-e->exp))
+   :singularity-slope (dc/fnr [declare-nonintegers maxima-e vname singularity-input]
+                              (-> (str dmm/default-settings declare-nonintegers "limit(diff(" maxima-e "," vname ")," vname "," singularity-input ");")
+                                  dmm/call-maxima*
+                                  :out
+                                  dmm/parse
+                                  :result
+                                  pow-e->exp))
+   :v (dc/wrap-fnr dm/vare
+                   [:vname])
+   :out-expression (dc/fnr [v expr min-input max-input singularity-slope singularity-input singularity-output]
+                           (dm/? (dmp/s {:op "and"
+                                         :children [(dmp/s {:op ">"
+                                                            :children [v min-input]})
+                                                    (dmp/s {:op "<"
+                                                            :children [v max-input]})]})
+                                 (dm/+ (dm/* singularity-slope (dm/- v singularity-input))
+                                       singularity-output)
+                                 expr))})
+
+(def maxima-linearize-singularity
+  (dc/->let-fn (merge base-maxima
+                      linearize-singularity-fns)
+               :out-expression
+               [:expr :vname :singularity-input :min-input :max-input]))
+
+(defn linearize-singularity [expr exp-map vname singularity-input min-input max-input]
+  (-> expr
+      maxima-simplify
+      (substitute-constants #{singularity-input} (fn [e m]
+                                                   (-> e
+                                                       (maxima-linearize-singularity vname
+                                                                                     singularity-input
+                                                                                     min-input
+                                                                                     max-input)
+                                                       (inline-expression m))))))
+
+
+#_ (do
+
+     (exponent-names (-> (dj.math.parser/parse "pow(3,x)+pow(3,x)")
+                         :result))
+     (dj.source/search (dj.git/proj "dj.cuda")
+                       #"\.clj$"
+                       #"config->assignment")
+     (#java.io.File["/home/bmillare/dj/usr/src/dj.cuda/src/dj/cuda/translator.clj"] #java.io.File["/home/bmillare/dj/usr/src/dj.cuda/src/dj/cuda/data.clj"])
+
+     (dj.source/search (dj.git/proj "dj.scratch")
+                       #"\.clj$"
+                       #"")
+     (#java.io.File["/home/bmillare/dj/usr/src/dj.scratch/src/dj/cuda.clj"])
+     (#java.io.File["/home/bmillare/dj/usr/src/dj.cuda/src/dj/cuda/data.clj"])
+     (dj.source/search (dj.git/proj "dj.math")
+                       #"\.clj$"
+                       #"dj\.compose")
+     
+     )
