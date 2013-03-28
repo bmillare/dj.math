@@ -113,7 +113,7 @@ returns expression with all nested expressions inlined
                                   :children (mapv recur-inline-exp children))))
        (if (number? exp)
          exp
-         (throw (Exception. "expression type not recognized")))))
+         (throw (Exception. (str "expression type not recognized: " (type exp)))))))
    exp))
 
 (defn arraymap->symbolic-expression [m]
@@ -501,24 +501,3 @@ A normalized ratio is a division put into the form in prefix notation
                                                                                      min-input
                                                                                      max-input)
                                                        (inline-expression m))))))
-
-
-#_ (do
-
-     (exponent-names (-> (dj.math.parser/parse "pow(3,x)+pow(3,x)")
-                         :result))
-     (dj.source/search (dj.git/proj "dj.cuda")
-                       #"\.clj$"
-                       #"config->assignment")
-     (#java.io.File["/home/bmillare/dj/usr/src/dj.cuda/src/dj/cuda/translator.clj"] #java.io.File["/home/bmillare/dj/usr/src/dj.cuda/src/dj/cuda/data.clj"])
-
-     (dj.source/search (dj.git/proj "dj.scratch")
-                       #"\.clj$"
-                       #"")
-     (#java.io.File["/home/bmillare/dj/usr/src/dj.scratch/src/dj/cuda.clj"])
-     (#java.io.File["/home/bmillare/dj/usr/src/dj.cuda/src/dj/cuda/data.clj"])
-     (dj.source/search (dj.git/proj "dj.math")
-                       #"\.clj$"
-                       #"dj\.compose")
-     
-     )
