@@ -1,6 +1,7 @@
 (ns dj.math.maxima
   (:require [clojure.java.shell :as cjs]
             [dj.math.parser :as dmp]
+            [dj.math.cemit]
             [dj.plurality :as dp]
             [dj.peg :as dpe]
             [dj.compose :as dc]))
