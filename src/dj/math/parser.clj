@@ -17,7 +17,7 @@
                             (fn [x]
                               (long (Integer/parseInt x)))))
    :double-num (dc/fnc #{} #{}
-                       (dp/alt (dp/t #"[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?")
+                       (dp/alt (dp/t #"(?:\d+(\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?")
                                (fn [x]
                                  (Double/parseDouble x))))
    :plus-minus (dc/fnc #{} #{}

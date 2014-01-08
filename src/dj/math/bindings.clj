@@ -6,7 +6,15 @@
   (toString [this]
     (str {:pairs pairs
           :bmap bmap}))
-  clojure.lang.IPersistentMap 
+  clojure.lang.IPersistentMap
+  (assoc [this k v]
+    nil)
+  (assocEx [this k v]
+    nil)
+  (without [this k]
+    nil)
+  (iterator [this]
+    (.iterator bmap))
   clojure.lang.ILookup 
   (valAt [this key]
     (get bmap key)) 
@@ -34,9 +42,9 @@
   (seq [this] (seq pairs)))
 
 (defmethod clojure.core/print-method bindings [o w]
-  (.write w "<dj.math.bindings.bindings\n[\n")
+  (.write w "#dj.math.bindings.bindings [\n")
   (.write w (.toString o))
-  (.write w "\n]>"))
+  (.write w "\n]"))
 
 ;; work out literal syntax for this
 (defmethod clojure.core/print-dup bindings [o w] 
